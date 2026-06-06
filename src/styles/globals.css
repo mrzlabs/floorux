@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 /* ============================================================
    RUMBA — POS & CRM para discotecas y tabernas · MRZLABS
@@ -21,8 +21,8 @@
 html,body{min-height:100%}
 body{
   background:
-    radial-gradient(1100px 600px at 82% -8%, color-mix(in srgb,var(--accent) 16%,transparent), transparent 60%),
-    radial-gradient(900px 500px at 8% 108%, color-mix(in srgb,var(--accent2) 12%,transparent), transparent 60%),
+    radial-gradient(1100px 600px at 82% -8%, color-mix(in srgb,var(--accent) var(--np,16%),transparent), transparent 60%),
+    radial-gradient(900px 500px at 8% 108%, color-mix(in srgb,var(--accent2) var(--np2,12%),transparent), transparent 60%),
     var(--bg);
   color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden;
 }
@@ -386,6 +386,16 @@ button{font-family:inherit}
 }
 /* tabla con scroll horizontal en mobile */
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
+
+/* ── densidad compacta ── */
+html.compact .nav-i{padding:7px 10px;font-size:13px}
+html.compact .content{padding:14px 18px 80px}
+html.compact .stat{padding:12px 14px}
+html.compact .card{border-radius:var(--r-md)}
+html.compact .topbar{padding:12px 18px 10px}
+html.compact .modal-b{padding:14px 16px}
+html.compact .field{margin-bottom:10px}
+html.compact .biz{padding:13px;gap:9px}
 .burger{display:none;width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);align-items:center;justify-content:center;cursor:pointer}
 @media (max-width:520px){
   .g4{grid-template-columns:1fr}
@@ -406,8 +416,8 @@ button{font-family:inherit}
 }
 [data-theme="light"] body{
   background:
-    radial-gradient(1100px 600px at 82% -8%, color-mix(in srgb,var(--accent) 14%,transparent), transparent 60%),
-    radial-gradient(900px 500px at 8% 108%, color-mix(in srgb,var(--accent2) 12%,transparent), transparent 60%),
+    radial-gradient(1100px 600px at 82% -8%, color-mix(in srgb,var(--accent) var(--np,14%),transparent), transparent 60%),
+    radial-gradient(900px 500px at 8% 108%, color-mix(in srgb,var(--accent2) var(--np2,10%),transparent), transparent 60%),
     var(--bg);
 }
 [data-theme="light"] .side{background:#ffffff;border-right-color:var(--line)}

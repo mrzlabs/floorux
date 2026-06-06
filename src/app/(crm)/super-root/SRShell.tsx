@@ -4,8 +4,8 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { getVisualConfig } from '@/components/shell/VisualTheme';
-import { useTheme } from '@/hooks/useTheme';
+import { useEffect } from 'react';
+import { applyFullTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
 
@@ -28,8 +28,14 @@ interface SRShellProps {
 }
 
 export function SRShell({ profile, view, children }: SRShellProps) {
-  const _theme = getVisualConfig(profile.panel_theme, '#B57BE0');
-  useTheme(_theme.mode, _theme.palette);
+  const pt = profile.panel_theme as Record<string, unknown>;
+  const brandLogo = typeof pt.brandLogo === 'string' ? pt.brandLogo : undefined;
+
+  useEffect(() => {
+    applyFullTheme(pt, '#B57BE0');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -44,7 +50,7 @@ export function SRShell({ profile, view, children }: SRShellProps) {
   return (
     <div className="app sr-shell">
       <style>{`.sr-shell .nav-i{font-size:15px}.sr-shell .nav-i svg{width:20px;height:20px}`}</style>
-      <Sidebar profile={profile} navItems={NAV} shopName="OperUX · Sistema" shopSub="Super Root · Control total" shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
+      <Sidebar profile={profile} navItems={NAV} shopName="OperUX · Sistema" shopSub="Super Root · Control total" shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} brandLogo={brandLogo} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
         <Topbar title={item.title} sub={item.sub} onMenu={() => setSideOpen(true)} onHelp={() => setHelp(h => !h)} />

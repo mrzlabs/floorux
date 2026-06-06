@@ -23,9 +23,10 @@ interface SidebarProps {
   onClose?: () => void;
   open?: boolean;
   returnPath?: string | null;
+  brandLogo?: string | null;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath }: SidebarProps) {
+export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo }: SidebarProps) {
   const pathname = usePathname();
   const role = profile.role === 'super_super_admin'
     ? { label: 'Super Root', icon: 'super' }
@@ -38,11 +39,16 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
   return (
     <aside className={'side' + (open ? ' open' : '')}>
       <div className="brand">
-        <span className="brand-mark">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M5 19V8l7-4 7 4v11M9 19v-5h6v5" stroke="#0b0a12" strokeWidth="2" strokeLinejoin="round" />
-            <circle cx="12" cy="10" r="1.6" fill="#0b0a12" />
-          </svg>
+        <span className="brand-mark" style={{ overflow: 'hidden' }}>
+          {brandLogo
+            ? <img src={brandLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : (
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M5 19V8l7-4 7 4v11M9 19v-5h6v5" stroke="#0b0a12" strokeWidth="2" strokeLinejoin="round" />
+                <circle cx="12" cy="10" r="1.6" fill="#0b0a12" />
+              </svg>
+            )
+          }
         </span>
         <div>
           <div className="brand-tx">FloorUX<span>.</span></div>
