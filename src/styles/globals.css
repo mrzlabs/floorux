@@ -18,13 +18,15 @@
   --font:'Plus Jakarta Sans',system-ui,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%}
+html{min-height:100%;overflow-y:auto}
 body{
+  min-height:100%;
   background:
     radial-gradient(1100px 600px at 82% -8%, color-mix(in srgb,var(--accent) var(--np,16%),transparent), transparent 60%),
     radial-gradient(900px 500px at 8% 108%, color-mix(in srgb,var(--accent2) var(--np2,12%),transparent), transparent 60%),
     var(--bg);
-  color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden;
+  color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;overflow-y:auto;
 }
 #root{min-height:100%}
 button{font-family:inherit}

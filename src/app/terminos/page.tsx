@@ -1,6 +1,6 @@
 const S = {
-  page: { minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font)' } as React.CSSProperties,
-  wrap: { maxWidth: 740, margin: '0 auto', padding: '48px 24px 0' } as React.CSSProperties,
+  page: { minHeight: '100vh', overflowY: 'auto' as const, background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font)' } as React.CSSProperties,
+  wrap: { maxWidth: 800, margin: '0 auto', padding: '40px 20px 80px' } as React.CSSProperties,
   back: { color: 'var(--accent)', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'inline-block', marginBottom: 32 } as React.CSSProperties,
   eyebrow: { fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--accent2)', marginBottom: 8 },
   h1: { fontSize: 32, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, marginBottom: 6 } as React.CSSProperties,
@@ -19,7 +19,7 @@ const S = {
 
 export default function TerminosPage() {
   return (
-    <div style={S.page}>
+    <main style={S.page}>
       <div style={S.wrap}>
         <a href="/login" style={S.back}>← Volver al inicio</a>
 
@@ -167,6 +167,6 @@ export default function TerminosPage() {
           contacto@mrzlabs.anonaddy.com
         </a>
       </footer>
-    </div>
+    </main>
   );
 }
