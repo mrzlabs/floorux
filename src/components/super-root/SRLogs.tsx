@@ -62,7 +62,7 @@ export function SRLogs() {
         <Stat label="Suspensiones y bajas" value={(actionCounts.SUSPEND ?? 0) + (actionCounts.DELETE ?? 0)} icon="lock" color="var(--red)" />
       </div>
       {bars.length > 0 && <div className="card chart" style={{ marginTop: 16 }}><div className="chart-h">Uso por módulo y tabla</div><Bars data={bars} hotIndex={0} /></div>}
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card tbl-wrap" style={{ marginTop: 16 }}>
         <table className="tbl">
           <thead><tr><th>Fecha</th><th>Acción</th><th>Tabla</th><th>IP</th><th>Payload</th></tr></thead>
           <tbody>

@@ -48,7 +48,7 @@ export function SRSoporte() {
         <Stat label="En gestión" value={tickets.filter(t => t.status === 'in_progress').length} icon="clock" color="var(--orange)" />
         <Stat label="Cerrados" value={tickets.filter(t => t.status === 'closed').length} icon="check" color="var(--green)" />
       </div>
-      <div className="card">
+      <div className="card tbl-wrap">
         <table className="tbl">
           <thead><tr><th>Fecha</th><th>Super Admin</th><th>Solicitud</th><th>Prioridad</th><th>Estado</th><th>Gestión</th></tr></thead>
           <tbody>{tickets.map(ticket => (

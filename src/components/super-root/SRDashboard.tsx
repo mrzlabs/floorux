@@ -67,7 +67,7 @@ export function SRDashboard() {
         </div>
       )}
 
-      <div className="card">
+      <div className="card tbl-wrap">
         <div className="chart-h" style={{ marginBottom: 12 }}>Top 10 comercios</div>
         <table className="tbl">
           <thead><tr><th>#</th><th>Comercio</th><th>Ciudad</th><th style={{ textAlign: 'right' }}>Recaudo</th></tr></thead>

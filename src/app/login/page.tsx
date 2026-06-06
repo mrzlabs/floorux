@@ -74,7 +74,7 @@ function LoginForm() {
   return (
     <>
       <style>{`
-        .lx-grid{display:grid;grid-template-columns:40% 60%;min-height:100vh}
+        .lx-grid{display:grid;grid-template-columns:40% 60%;height:100vh;overflow:hidden}
         .lx-left{
           display:flex;flex-direction:column;align-items:center;justify-content:center;
           padding:48px 40px;gap:28px;position:relative;overflow:hidden;
@@ -95,16 +95,30 @@ function LoginForm() {
           border-radius:999px;padding:5px 14px;margin-bottom:24px}
         .lx-right{
           display:flex;flex-direction:column;align-items:center;justify-content:center;
-          padding:48px 32px;background:var(--bg)
+          padding:48px 32px;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch
         }
         .lx-right-inner{width:100%;max-width:400px;display:flex;flex-direction:column;gap:0}
         .lx-footer{margin-top:32px;text-align:center;color:var(--muted2);font-size:12px;line-height:1.7}
         @media(max-width:860px){
-          .lx-grid{grid-template-columns:1fr}
-          .lx-left{padding:40px 24px 28px}
-          .lx-maylo{width:120px;height:120px;margin-bottom:16px}
-          .lx-welcome-title{font-size:22px}
-          .lx-right{padding:28px 20px 48px}
+          .lx-grid{
+            grid-template-columns:1fr;
+            grid-template-rows:auto 1fr;
+            height:auto;min-height:100vh;overflow:visible
+          }
+          .lx-left{
+            max-height:260px;padding:24px;gap:12px;overflow:hidden;
+            justify-content:flex-end
+          }
+          .lx-left-inner{max-width:100%}
+          .lx-brand-pill{margin-bottom:12px}
+          .lx-maylo{width:88px;height:88px;margin-bottom:8px}
+          .lx-welcome-title{font-size:18px;margin-bottom:6px}
+          .lx-welcome-sub{font-size:13px;display:none}
+          .lx-right{
+            padding:24px 20px 48px;
+            overflow:visible;align-items:stretch
+          }
+          .lx-right-inner{max-width:100%}
         }
       `}</style>
 

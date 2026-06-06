@@ -89,7 +89,7 @@ export function SRUsuarios() {
         <button className={'fchip' + (filter === 'all' ? ' on' : '')} onClick={() => setFilter('all')}>Todos</button>
         {ROLES.map(r => <button key={r} className={'fchip' + (filter === r ? ' on' : '')} onClick={() => setFilter(r)}>{r}</button>)}
       </div>
-      <div className="card">
+      <div className="card tbl-wrap">
         <table className="tbl">
           <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Enlazado a</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>

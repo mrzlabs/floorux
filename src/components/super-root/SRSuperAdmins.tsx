@@ -87,7 +87,7 @@ export function SRSuperAdmins() {
         <button className="btn pri" onClick={() => setAdding(true)}><Icon name="plus" /> Crear Super Admin</button>
       </div>
 
-      <div className="card">
+      <div className="card tbl-wrap">
         <table className="tbl">
           <thead><tr><th>Nombre</th><th>Email</th><th>Comercios</th><th>Estado</th><th>Último login</th><th>Acciones</th></tr></thead>
           <tbody>

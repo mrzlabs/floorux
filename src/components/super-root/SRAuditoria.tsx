@@ -70,7 +70,7 @@ export function SRAuditoria() {
         {rows.length === 0 ? (
           <p className="muted" style={{ padding: 24, textAlign: 'center' }}>Cargando datos de auditoría…</p>
         ) : (
-          <table className="tbl">
+          <div className="tbl-wrap"><table className="tbl">
             <thead><tr><th>Comercio</th><th>Producto</th><th style={{ textAlign: 'right' }}>Stock</th><th style={{ textAlign: 'right' }}>Vendidas</th><th style={{ textAlign: 'right' }}>Salidas</th><th>Cuadre</th></tr></thead>
             <tbody>
               {rows.map((r, i) => (
@@ -88,7 +88,7 @@ export function SRAuditoria() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
