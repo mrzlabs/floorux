@@ -72,15 +72,15 @@ function LoginForm() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-.03em', color: 'var(--ink)' }}>
+    <div className="login-shell">
+      <div className="login-frame">
+        <div className="login-brand">
+          <div className="login-logo">
             FloorUX<span style={{ color: 'var(--accent)' }}>.</span>
           </div>
-          <div style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>by OperUX · CRM Nightlife</div>
+          <div className="login-sub">by OperUX · CRM Nightlife</div>
           {mayloReady && (
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0' }}
+            <div className="login-maylo"
               dangerouslySetInnerHTML={{
                 __html: (window as any).maylo?.({ eyes: 'open', mouth: 'smile', arms: 'wave', panel: false }) ?? '',
               }}
@@ -88,8 +88,12 @@ function LoginForm() {
           )}
         </div>
 
-        <form className="card" style={{ padding: 28 }} onSubmit={handleLogin}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Iniciar sesión</h2>
+        <form className="card login-card" onSubmit={handleLogin}>
+          <div className="login-card-h">
+            <span>Acceso seguro</span>
+            <h1>Iniciar sesión</h1>
+            <p>Ingresa al panel asignado a tu cuenta.</p>
+          </div>
 
           {error && (
             <div className="alert-banner" style={{ marginBottom: 16 }}>
@@ -110,23 +114,26 @@ function LoginForm() {
               <button className="btn sm" type="button" onClick={() => setShowPassword(value => !value)}>{showPassword ? 'Ocultar' : 'Ver'}</button>
             </div>
           </div>
-          <button className="btn ghost block" type="button" onClick={forgotPassword}>Olvidé mi contraseña</button>
+          <button className="login-forgot" type="button" onClick={forgotPassword}>Olvidé mi contraseña</button>
 
           <button className="btn pri block" type="submit" disabled={loading} style={{ marginTop: 20, height: 48 }}>
             {loading ? 'Ingresando…' : <><Icon name="lock" s={16} /> Ingresar</>}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 12, marginTop: 16 }}>
+        <p className="login-foot">
           El acceso es solo por invitación. Contacta a tu administrador.
         </p>
       </div>
       {loading && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(7,5,17,.94)', display: 'grid', placeItems: 'center' }}>
-          <div style={{ textAlign: 'center', width: 180 }}>
-            {mayloReady && <div dangerouslySetInnerHTML={{ __html: (window as any).maylo?.({ eyes: 'happy', mouth: 'talk', arms: 'welcome', panel: true }) ?? '' }} />}
-            <b style={{ display: 'block', marginTop: 14 }}>Estamos listos para comenzar</b>
-            <span className="muted" style={{ fontSize: 12 }}>Validando acceso</span>
+        <div className="login-wait">
+          <div className="login-wait-card">
+            {mayloReady && <div className="login-wait-maylo" dangerouslySetInnerHTML={{ __html: (window as any).maylo?.({ eyes: 'happy', mouth: 'talk', arms: 'welcome', panel: true }) ?? '' }} />}
+            <div className="login-wait-copy">
+              <span className="live"><i />Conectando</span>
+              <b>Estamos preparando tu panel</b>
+              <p>Validando acceso y cargando el comercio asignado.</p>
+            </div>
           </div>
         </div>
       )}

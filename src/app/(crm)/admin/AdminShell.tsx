@@ -48,8 +48,8 @@ export function AdminShell({ profile, comercio, view, lowStockCount = 0, operati
 
   return (
     <div className="app">
-      <VisualTheme settings={comercio.settings} />
-      <Sidebar profile={profile} navItems={nav} shopName={comercio.name} shopSub={`${comercio.city} · Plan ${comercio.plan}`} shopColor={comercio.color} open={sideOpen} onClose={() => setSideOpen(false)} returnPath={returnPath} />
+      <VisualTheme settings={comercio.settings} fallbackColor={comercio.color} />
+      <Sidebar profile={profile} navItems={nav} shopName={comercio.name} shopSub={`${comercio.city} · Plan ${comercio.plan}`} shopColor={comercio.color} shopImg={comercio.photo_url} open={sideOpen} onClose={() => setSideOpen(false)} returnPath={returnPath} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
         <Topbar title={item.title} sub={item.sub} alertCount={lowStockCount} onMenu={() => setSideOpen(true)} onHelp={() => setHelp(h => !h)} />

@@ -19,12 +19,13 @@ interface SidebarProps {
   shopName: string;
   shopSub: string;
   shopColor: string;
+  shopImg?: string | null;
   onClose?: () => void;
   open?: boolean;
   returnPath?: string | null;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, onClose, open, returnPath }: SidebarProps) {
+export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath }: SidebarProps) {
   const pathname = usePathname();
   const role = profile.role === 'super_admin'
     ? { label: 'Super Admin', icon: 'super' }
@@ -68,7 +69,7 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, onClo
       </nav>
 
       <div className="shop">
-        <Avatar name={shopName} color={shopColor} />
+        <Avatar name={shopName} color={shopColor} img={shopImg ?? undefined} />
         <div style={{ minWidth: 0 }}>
           <b>{shopName}</b>
           <span>{shopSub}</span>

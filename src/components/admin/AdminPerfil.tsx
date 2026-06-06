@@ -30,6 +30,7 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   const [bizForm, setBizForm] = useState({ name: comercio.name, address: comercio.address ?? '', phone: comercio.phone ?? '', nit: comercio.nit ?? '', color: comercio.color });
   const [visual, setVisual] = useState(() => getVisualConfig(comercio.settings));
   const [savingVisual, setSavingVisual] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState(comercio.photo_url ?? '');
   const supabase = createClient();
 
   async function saveProfile() {
@@ -39,11 +40,22 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   }
 
   async function saveBiz() {
-    const { error } = await supabase.from('comercios').update({ name: bizForm.name, address: bizForm.address || null, phone: bizForm.phone || null, nit: bizForm.nit || null, color: bizForm.color }).eq('id', comercio.id);
+    const nextVisual = { ...visual, palette: [bizForm.color, visual.palette[1], visual.palette[2]] };
+    const settings = { ...comercio.settings, config_visual: nextVisual };
+    const { error } = await supabase.from('comercios').update({
+      name: bizForm.name,
+      address: bizForm.address || null,
+      phone: bizForm.phone || null,
+      nit: bizForm.nit || null,
+      color: bizForm.color,
+      settings,
+    }).eq('id', comercio.id);
     if (error) {
       toast('No se pudo actualizar el local', 'alert');
       return;
     }
+    setVisual(nextVisual);
+    applyVisualConfig(nextVisual);
     toast('Local actualizado', 'check');
   }
 
@@ -73,6 +85,7 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
     if (error) { toast('No se pudo subir la imagen', 'alert'); return; }
     const { data } = supabase.storage.from('floorux-media').getPublicUrl(path);
     await supabase.from('comercios').update({ photo_url: data.publicUrl }).eq('id', comercio.id);
+    setPhotoUrl(data.publicUrl);
     toast('Foto del comercio actualizada', 'check');
   }
 
@@ -108,11 +121,22 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
 
         <div className="card" style={{ padding: 20 }}>
           <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 16 }}>Datos del local</h2>
+          <div className="profile-card" style={{ marginBottom: 16 }}>
+            <Avatar name={bizForm.name || comercio.name} color={bizForm.color} size="lg" img={photoUrl || undefined} />
+            <div>
+              <b>{bizForm.name || comercio.name}</b>
+              <div className="muted" style={{ fontSize: 12 }}>{comercio.type} · {comercio.city}</div>
+            </div>
+          </div>
           <Field label="Nombre del local"><input className="inp" value={bizForm.name} onChange={e => setBizForm(f => ({ ...f, name: e.target.value }))} /></Field>
           <Field label="Dirección"><input className="inp" value={bizForm.address} onChange={e => setBizForm(f => ({ ...f, address: e.target.value }))} /></Field>
           <Field label="Teléfono"><input className="inp" value={bizForm.phone} onChange={e => setBizForm(f => ({ ...f, phone: e.target.value }))} /></Field>
           <Field label="NIT"><input className="inp" value={bizForm.nit} onChange={e => setBizForm(f => ({ ...f, nit: e.target.value }))} /></Field>
-          <Field label="Color del panel"><input className="inp" type="color" value={bizForm.color} onChange={e => setBizForm(f => ({ ...f, color: e.target.value }))} /></Field>
+          <Field label="Color principal del panel"><input className="inp" type="color" value={bizForm.color} onChange={e => {
+            const color = e.target.value;
+            setBizForm(f => ({ ...f, color }));
+            applyVisualConfig({ ...visual, palette: [color, visual.palette[1], visual.palette[2]] });
+          }} /></Field>
           <Field label="Foto del comercio"><input className="inp" type="file" accept="image/*" onChange={e => uploadCommerce(e.target.files?.[0])} /></Field>
           <div className="grid g2" style={{ marginTop: 8 }}>
             <div className="stat"><div className="sk"><span className="si" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}><Icon name="tag" s={14} sw={2} /></span>Plan</div><div className="sv">{comercio.plan}</div></div>

@@ -13,9 +13,14 @@ const DEFAULT_VISUAL: VisualConfig = {
   palette: ['#7F77DD', '#27C3D8', '#B57BE0'],
 };
 
-export function getVisualConfig(settings: Record<string, unknown>): VisualConfig {
-  const raw = settings.config_visual;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_VISUAL;
+export function getVisualConfig(settings: Record<string, unknown>, fallbackColor = DEFAULT_VISUAL.palette[0]): VisualConfig {
+  const candidate = settings.config_visual ?? settings;
+  const raw = candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+    ? candidate
+    : null;
+  if (!raw) {
+    return { ...DEFAULT_VISUAL, palette: [fallbackColor, DEFAULT_VISUAL.palette[1], DEFAULT_VISUAL.palette[2]] };
+  }
 
   const config = raw as Record<string, unknown>;
   const mode = config.mode === 'light' ? 'light' : 'dark';
@@ -25,7 +30,7 @@ export function getVisualConfig(settings: Record<string, unknown>): VisualConfig
 
   return {
     mode,
-    palette: palette.length === 3 ? palette : DEFAULT_VISUAL.palette,
+    palette: palette.length === 3 ? palette : [fallbackColor, DEFAULT_VISUAL.palette[1], DEFAULT_VISUAL.palette[2]],
   };
 }
 
@@ -37,10 +42,10 @@ export function applyVisualConfig(config: VisualConfig) {
   root.style.setProperty('--accent3', config.palette[2]);
 }
 
-export function VisualTheme({ settings }: { settings: Record<string, unknown> }) {
+export function VisualTheme({ settings, fallbackColor }: { settings: Record<string, unknown>; fallbackColor?: string }) {
   useEffect(() => {
-    applyVisualConfig(getVisualConfig(settings));
-  }, [settings]);
+    applyVisualConfig(getVisualConfig(settings, fallbackColor));
+  }, [settings, fallbackColor]);
 
   return null;
 }
@@ -55,12 +60,12 @@ export function CommerceVisualTheme({ comercioId }: { comercioId: string | null 
     async function loadTheme() {
       const { data } = await supabase
         .from('comercios')
-        .select('settings')
+        .select('settings, color')
         .eq('id', comercioId)
         .maybeSingle();
 
       if (active && data?.settings) {
-        applyVisualConfig(getVisualConfig(data.settings as Record<string, unknown>));
+        applyVisualConfig(getVisualConfig(data.settings as Record<string, unknown>, data.color));
       }
     }
 

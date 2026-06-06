@@ -12,7 +12,7 @@ export interface Profile {
   alias: string | null;
   avatar_url: string | null;
   phone: string | null;
-  panel_theme: Record<string, string>;
+  panel_theme: Record<string, unknown>;
   last_login: string | null;
   created_at: string;
   updated_at: string;

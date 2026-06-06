@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
+import { VisualTheme } from '@/components/shell/VisualTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
 
@@ -31,7 +32,8 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   const item = NAV.find(n => n.href === '/super/' + view || (view === 'comercios' && n.href === '/super')) ?? NAV[0];
 
   return (
-    <div className="app" style={{ ['--accent' as any]: profile.color }}>
+    <div className="app">
+      <VisualTheme settings={profile.panel_theme} fallbackColor={profile.color} />
       <Sidebar profile={profile} navItems={NAV} shopName={`Grupo · ${profile.alias ?? profile.full_name}`} shopSub={`Super Admin · ${profile.email}`} shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

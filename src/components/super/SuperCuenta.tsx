@@ -5,6 +5,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Field } from '@/components/ui/Field';
 import { Avatar } from '@/components/ui/Avatar';
 import { useToast } from '@/components/ui/ToastContext';
+import { applyVisualConfig, getVisualConfig } from '@/components/shell/VisualTheme';
 import type { Comercio, Profile, SubscriptionHistory } from '@/types/db';
 
 interface SuperCuentaProps {
@@ -14,6 +15,7 @@ interface SuperCuentaProps {
 export function SuperCuenta({ profile }: SuperCuentaProps) {
   const toast = useToast();
   const [form, setForm] = useState({ full_name: profile.full_name, alias: profile.alias ?? '', color: profile.color });
+  const [photoUrl, setPhotoUrl] = useState(profile.avatar_url ?? '');
   const [comercios, setComercios] = useState<Comercio[]>([]);
   const [history, setHistory] = useState<SubscriptionHistory[]>([]);
   const [ticket, setTicket] = useState({ subject: '', body: '', priority: 'normal' });
@@ -31,7 +33,19 @@ export function SuperCuenta({ profile }: SuperCuentaProps) {
   }, [profile.id]);
 
   async function save() {
-    await supabase.from('profiles').update({ full_name: form.full_name, alias: form.alias || null, color: form.color }).eq('id', profile.id);
+    const current = getVisualConfig(profile.panel_theme, profile.color);
+    const visual = { ...current, palette: [form.color, current.palette[1], current.palette[2]] };
+    const { error } = await supabase.from('profiles').update({
+      full_name: form.full_name,
+      alias: form.alias || null,
+      color: form.color,
+      panel_theme: visual,
+    }).eq('id', profile.id);
+    if (error) {
+      toast('No se pudo actualizar el perfil', 'alert');
+      return;
+    }
+    applyVisualConfig(visual);
     toast('Perfil actualizado', 'check');
   }
 
@@ -42,6 +56,7 @@ export function SuperCuenta({ profile }: SuperCuentaProps) {
     if (error) { toast('No se pudo subir la imagen', 'alert'); return; }
     const { data } = supabase.storage.from('floorux-media').getPublicUrl(path);
     await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', profile.id);
+    setPhotoUrl(data.publicUrl);
     toast('Imagen actualizada', 'check');
   }
 
@@ -60,7 +75,7 @@ export function SuperCuenta({ profile }: SuperCuentaProps) {
     <div>
       <div className="card" style={{ maxWidth: 560, padding: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-          <Avatar name={profile.full_name} color={profile.color} size="lg" img={profile.avatar_url ?? undefined} />
+          <Avatar name={form.full_name || profile.full_name} color={form.color} size="lg" img={photoUrl || undefined} />
           <div>
             <div style={{ fontWeight: 800, fontSize: 18 }}>{profile.full_name}</div>
             <div className="muted" style={{ fontSize: 13 }}>Super Admin · {profile.email}</div>
@@ -74,7 +89,12 @@ export function SuperCuenta({ profile }: SuperCuentaProps) {
           <input className="inp" value={form.alias} placeholder="Ej. El jefe, La dueña…" onChange={e => setForm(f => ({ ...f, alias: e.target.value }))} />
         </Field>
         <Field label="Color de marca">
-          <input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ height: 40, width: '100%', borderRadius: 8, border: 'none', cursor: 'pointer' }} />
+          <input type="color" value={form.color} onChange={e => {
+            const color = e.target.value;
+            setForm(f => ({ ...f, color }));
+            const current = getVisualConfig(profile.panel_theme, profile.color);
+            applyVisualConfig({ ...current, palette: [color, current.palette[1], current.palette[2]] });
+          }} style={{ height: 40, width: '100%', borderRadius: 8, border: 'none', cursor: 'pointer' }} />
         </Field>
         <Field label="Imagen de perfil"><input className="inp" type="file" accept="image/*" onChange={e => uploadAvatar(e.target.files?.[0])} /></Field>
         <button className="btn pri block" style={{ marginTop: 20 }} onClick={save}><Icon name="check" /> Guardar cambios</button>
