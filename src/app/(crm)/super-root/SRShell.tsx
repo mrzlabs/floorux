@@ -13,6 +13,7 @@ const NAV = [
   { href: '/super-root', label: 'Dashboard', icon: 'dash', title: 'Dashboard global', sub: 'Vista completa del sistema' },
   { href: '/super-root/super-admins', label: 'Super Admins', icon: 'super', title: 'Super Admins', sub: 'Gestión de franquiciados' },
   { href: '/super-root/comercios', label: 'Comercios', icon: 'biz', title: 'Todos los comercios', sub: 'Vista completa de la red' },
+  { href: '/super-root/reportes', label: 'Reportes', icon: 'chart', title: 'Reportes de rentabilidad', sub: 'Suscripciones, ingresos y proyecciones' },
   { href: '/super-root/usuarios', label: 'Usuarios', icon: 'users', title: 'Usuarios', sub: 'Todos los usuarios del sistema' },
   { href: '/super-root/logs', label: 'Logs', icon: 'history', title: 'Logs de auditoría', sub: 'Registro de actividad' },
   { href: '/super-root/auditoria', label: 'Auditoría', icon: 'check', title: 'Auditoría de inventario', sub: 'Cuadre global inventario vs ventas' },
@@ -41,7 +42,8 @@ export function SRShell({ profile, view, children }: SRShellProps) {
   const item = NAV.find(n => n.href.includes(view)) ?? NAV[0];
 
   return (
-    <div className="app">
+    <div className="app sr-shell">
+      <style>{`.sr-shell .nav-i{font-size:15px}.sr-shell .nav-i svg{width:20px;height:20px}`}</style>
       <Sidebar profile={profile} navItems={NAV} shopName="OperUX · Sistema" shopSub="Super Root · Control total" shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

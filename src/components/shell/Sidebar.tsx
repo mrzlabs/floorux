@@ -27,11 +27,13 @@ interface SidebarProps {
 
 export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath }: SidebarProps) {
   const pathname = usePathname();
-  const role = profile.role === 'super_admin'
-    ? { label: 'Super Admin', icon: 'super' }
-    : profile.role === 'admin'
-      ? { label: 'Admin', icon: 'admin' }
-      : { label: 'Empleado', icon: 'empleado' };
+  const role = profile.role === 'super_super_admin'
+    ? { label: 'Super Root', icon: 'super' }
+    : profile.role === 'super_admin'
+      ? { label: 'Super Admin', icon: 'super' }
+      : profile.role === 'admin'
+        ? { label: 'Admin', icon: 'admin' }
+        : { label: 'Empleado', icon: 'empleado' };
 
   return (
     <aside className={'side' + (open ? ' open' : '')}>
