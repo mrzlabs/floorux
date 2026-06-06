@@ -1,68 +1,166 @@
+const S = {
+  page: { minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font)' } as React.CSSProperties,
+  wrap: { maxWidth: 740, margin: '0 auto', padding: '48px 24px 0' } as React.CSSProperties,
+  back: { color: 'var(--accent)', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'inline-block', marginBottom: 32 } as React.CSSProperties,
+  eyebrow: { fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'var(--accent2)', marginBottom: 8 },
+  h1: { fontSize: 32, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, marginBottom: 6 } as React.CSSProperties,
+  meta: { fontSize: 13, color: 'var(--muted)', marginBottom: 40 } as React.CSSProperties,
+  hr: { border: 'none', borderTop: '1px solid var(--line)', margin: '32px 0' } as React.CSSProperties,
+  h2: { fontSize: 15, fontWeight: 800, marginBottom: 10, marginTop: 32, color: 'var(--ink)' } as React.CSSProperties,
+  p: { fontSize: 14, color: 'var(--muted)', lineHeight: 1.75, marginBottom: 14 } as React.CSSProperties,
+  li: { fontSize: 14, color: 'var(--muted)', lineHeight: 1.75, marginBottom: 4 } as React.CSSProperties,
+  ul: { paddingLeft: 20, marginBottom: 14 } as React.CSSProperties,
+  ol: { paddingLeft: 20, marginBottom: 14 } as React.CSSProperties,
+  strong: { color: 'var(--ink)', fontWeight: 700 } as React.CSSProperties,
+  footer: { marginTop: 64, borderTop: '1px solid var(--line)', padding: '24px 0 48px', textAlign: 'center' as const, fontSize: 12, color: 'var(--muted2)' },
+  em: { fontStyle: 'italic' as const, color: 'var(--muted2)', fontSize: 13 },
+  chip: { display: 'inline-block', fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: 'color-mix(in srgb, var(--accent2) 16%, transparent)', color: 'var(--accent2)', marginRight: 6 } as React.CSSProperties,
+};
+
+const A = ({ href, children }: { href: string; children: React.ReactNode }) => (
+  <a href={href} style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>{children}</a>
+);
+
 export default function PrivacidadPage() {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px 80px', color: 'var(--ink)', fontFamily: 'var(--font)' }}>
-      <a href="/login" style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>← Volver</a>
+    <div style={S.page}>
+      <div style={S.wrap}>
+        <a href="/login" style={S.back}>← Volver al inicio</a>
 
-      <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-.03em', marginTop: 24, marginBottom: 6 }}>
-        Política de Privacidad
-      </h1>
-      <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 36 }}>FloorUX by MRZLabs · Última actualización: junio 2025</p>
+        <div style={S.eyebrow}>FloorUX CRM · OperUX · mrzlabs</div>
+        <h1 style={S.h1}>Política de Tratamiento de Datos Personales</h1>
+        <p style={S.meta}>Última actualización: junio de 2026</p>
+        <p style={{ ...S.p, padding: '12px 16px', background: 'color-mix(in srgb, var(--accent2) 10%, transparent)', borderRadius: 12, borderLeft: '3px solid var(--accent2)' }}>
+          En cumplimiento de la <strong style={S.strong}>Ley 1581 de 2012</strong>, el{' '}
+          <strong style={S.strong}>Decreto 1377 de 2013</strong> y demás normas concordantes sobre protección de
+          datos personales en Colombia.
+        </p>
+        <hr style={S.hr} />
 
-      <Section title="1. Responsable del tratamiento">
-        MRZLabs, con correo de contacto <a href="mailto:contacto@mrzlabs.anonaddy.com" style={{ color: 'var(--accent)', fontWeight: 700 }}>contacto@mrzlabs.anonaddy.com</a>, es responsable del tratamiento de los datos personales recopilados a través de FloorUX.
-      </Section>
+        <h2 style={S.h2}>1. Responsable del tratamiento</h2>
+        <p style={S.p}>
+          <strong style={S.strong}>Nombre:</strong> Andrés Martínez<br />
+          <strong style={S.strong}>Marca comercial:</strong> mrzlabs — OperUX<br />
+          <strong style={S.strong}>Producto:</strong> FloorUX CRM<br />
+          <strong style={S.strong}>Correo electrónico:</strong>{' '}
+          <A href="mailto:contacto@mrzlabs.anonaddy.com">contacto@mrzlabs.anonaddy.com</A><br />
+          <strong style={S.strong}>País:</strong> Colombia
+        </p>
 
-      <Section title="2. Datos que recopilamos">
-        Recopilamos: nombre completo, correo electrónico, número de teléfono (opcional), datos de actividad dentro de la plataforma (ventas, inventario, turnos), y dirección IP para seguridad. No recopilamos datos de tarjetas de crédito ni información financiera sensible.
-      </Section>
+        <h2 style={S.h2}>2. Datos que recolectamos</h2>
+        <p style={S.p}><span style={S.chip}>Admins</span> Nombre completo · Correo electrónico · Teléfono · Información del establecimiento (nombre, dirección, ciudad, NIT)</p>
+        <p style={S.p}><span style={S.chip}>Empleados</span> Nombre completo · Correo electrónico · Alias operativo · Registro de turnos y ventas</p>
+        <p style={S.p}><span style={S.chip}>Operación</span> Registros de ventas · Movimientos de inventario · Historial de turnos</p>
+        <p style={S.p}>
+          <strong style={S.strong}>No recolectamos:</strong> datos sensibles como origen racial, salud, orientación
+          sexual, datos biométricos, ni información de menores de edad.
+        </p>
 
-      <Section title="3. Finalidad del tratamiento">
-        Los datos se usan para: proveer el servicio FloorUX, autenticar usuarios, generar reportes operativos del comercio, soporte técnico, y mejora del producto. No utilizamos datos para publicidad de terceros.
-      </Section>
+        <h2 style={S.h2}>3. Finalidades del tratamiento</h2>
+        <p style={S.p}>Los datos se tratan para:</p>
+        <ol style={S.ol}>
+          {[
+            'Prestar el servicio de gestión operativa contratado',
+            'Gestionar la facturación y suscripción',
+            'Enviar notificaciones del servicio (actualizaciones, vencimientos, alertas)',
+            'Generar reportes operativos internos del establecimiento',
+            'Cumplir obligaciones legales aplicables',
+            'Mejorar las funcionalidades de la plataforma',
+          ].map(item => <li key={item} style={S.li}>{item}</li>)}
+        </ol>
+        <p style={S.p}>
+          Los datos <strong style={S.strong}>no se venden, ceden ni comparten</strong> con terceros para fines
+          comerciales o publicitarios.
+        </p>
 
-      <Section title="4. Base legal">
-        El tratamiento se basa en la ejecución del contrato de suscripción y el consentimiento explícito otorgado al aceptar estos términos, conforme a la Ley 1581 de 2012 (Colombia) y sus decretos reglamentarios.
-      </Section>
+        <h2 style={S.h2}>4. Derechos del titular</h2>
+        <p style={S.p}>Conforme a la Ley 1581 de 2012, el titular de los datos tiene derecho a:</p>
+        <ul style={S.ul}>
+          {[
+            ['Conocer', 'los datos personales que reposan en FloorUX'],
+            ['Actualizar', 'sus datos cuando sean inexactos o incompletos'],
+            ['Rectificar', 'información incorrecta'],
+            ['Suprimir', 'sus datos cuando no sean necesarios para la finalidad del tratamiento'],
+            ['Revocar', 'la autorización de tratamiento en cualquier momento'],
+            ['Acceder', 'gratuitamente a sus datos personales'],
+          ].map(([bold, rest]) => (
+            <li key={bold} style={S.li}>
+              <strong style={S.strong}>{bold}</strong> {rest}
+            </li>
+          ))}
+        </ul>
+        <p style={S.p}>
+          Para ejercer estos derechos envía solicitud a <A href="mailto:contacto@mrzlabs.anonaddy.com">contacto@mrzlabs.anonaddy.com</A> indicando
+          nombre completo, tipo y número de documento, y descripción de la solicitud.
+          El término de respuesta es de <strong style={S.strong}>15 días hábiles</strong> para consultas y reclamos,
+          prorrogables por 8 días hábiles adicionales con notificación previa.
+        </p>
 
-      <Section title="5. Compartición de datos">
-        No vendemos ni cedemos datos personales a terceros. Podemos compartir datos con proveedores de infraestructura (Supabase/Vercel) bajo acuerdos de confidencialidad, exclusivamente para operar el servicio.
-      </Section>
+        <h2 style={S.h2}>5. Base legal del tratamiento</h2>
+        <ul style={S.ul}>
+          <li style={S.li}>La autorización expresa del titular al momento del registro en la plataforma</li>
+          <li style={S.li}>La ejecución del contrato de suscripción aceptado por el usuario</li>
+          <li style={S.li}>El cumplimiento de obligaciones legales aplicables</li>
+        </ul>
 
-      <Section title="6. Almacenamiento y seguridad">
-        Los datos se almacenan en servidores seguros con cifrado en tránsito (HTTPS/TLS) y en reposo. Aplicamos control de acceso basado en roles para evitar accesos no autorizados entre comercios.
-      </Section>
+        <h2 style={S.h2}>6. Seguridad de los datos</h2>
+        <ul style={S.ul}>
+          {[
+            'Cifrado en tránsito mediante TLS/SSL',
+            'Autenticación segura con tokens de sesión (Supabase Auth)',
+            'Control de acceso por roles (RLS — Row Level Security)',
+            'Backups automáticos de la base de datos',
+            'Acceso restringido a datos por principio de mínimo privilegio',
+          ].map(item => <li key={item} style={S.li}>{item}</li>)}
+        </ul>
 
-      <Section title="7. Retención de datos">
-        Conservamos los datos mientras la suscripción esté activa. Tras la cancelación, los datos se eliminan en un plazo máximo de 90 días, salvo obligación legal de conservación.
-      </Section>
+        <h2 style={S.h2}>7. Conservación de los datos</h2>
+        <p style={S.p}>
+          Los datos se conservan durante la vigencia de la suscripción y por{' '}
+          <strong style={S.strong}>90 días adicionales</strong> tras la cancelación o suspensión, período durante
+          el cual el titular puede solicitar exportación o eliminación. Vencido ese término, los datos pueden ser
+          eliminados definitivamente.
+        </p>
 
-      <Section title="8. Derechos del titular">
-        Tienes derecho a acceder, rectificar, suprimir, portar y oponerte al tratamiento de tus datos. Ejerce estos derechos escribiendo a <a href="mailto:contacto@mrzlabs.anonaddy.com" style={{ color: 'var(--accent)', fontWeight: 700 }}>contacto@mrzlabs.anonaddy.com</a>.
-      </Section>
+        <h2 style={S.h2}>8. Transferencia internacional</h2>
+        <p style={S.p}>
+          Los datos se almacenan en servidores de <strong style={S.strong}>Supabase</strong> (AWS us-east-1) y{' '}
+          <strong style={S.strong}>Vercel</strong> (infraestructura global). Ambos proveedores cuentan con
+          políticas de privacidad y seguridad conformes con estándares internacionales. mrzlabs no realiza
+          transferencias internacionales de datos a título independiente.
+        </p>
 
-      <Section title="9. Cookies">
-        FloorUX usa cookies de sesión estrictamente necesarias para autenticación. No usamos cookies de rastreo ni publicidad.
-      </Section>
+        <h2 style={S.h2}>9. Modificaciones a esta política</h2>
+        <p style={S.p}>
+          mrzlabs puede actualizar esta Política en cualquier momento. Los cambios se notificarán al correo
+          registrado. La versión vigente siempre estará disponible en la plataforma.
+        </p>
 
-      <Section title="10. Cambios a esta política">
-        Cualquier cambio material será notificado por correo electrónico con al menos 15 días de anticipación. El uso continuado del servicio implica aceptación de la nueva política.
-      </Section>
+        <h2 style={S.h2}>10. Contacto y reclamos</h2>
+        <p style={S.p}>
+          <strong style={S.strong}>Correo:</strong>{' '}
+          <A href="mailto:contacto@mrzlabs.anonaddy.com">contacto@mrzlabs.anonaddy.com</A><br />
+          <strong style={S.strong}>Tiempo de respuesta:</strong> máximo 15 días hábiles
+        </p>
+        <p style={S.p}>
+          Si considera que su solicitud no fue atendida adecuadamente, puede acudir a la{' '}
+          <strong style={S.strong}>Superintendencia de Industria y Comercio (SIC)</strong> en{' '}
+          <A href="https://www.sic.gov.co">www.sic.gov.co</A>
+        </p>
 
-      <Section title="11. Contacto">
-        Para ejercer derechos o consultas sobre privacidad:{' '}
-        <a href="mailto:contacto@mrzlabs.anonaddy.com" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+        <hr style={S.hr} />
+        <p style={S.em}>
+          Autorización: Al registrarse en FloorUX, el usuario declara haber leído, entendido y aceptado esta
+          Política de Tratamiento de Datos Personales.
+        </p>
+      </div>
+
+      <footer style={S.footer}>
+        FloorUX CRM · mrzlabs ·{' '}
+        <a href="mailto:contacto@mrzlabs.anonaddy.com" style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>
           contacto@mrzlabs.anonaddy.com
         </a>
-      </Section>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 28 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{title}</h2>
-      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.7 }}>{children}</p>
+      </footer>
     </div>
   );
 }
