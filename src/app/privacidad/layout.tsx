@@ -3,12 +3,13 @@ import type { ReactNode } from 'react';
 export default function PrivacidadLayout({ children }: { children: ReactNode }) {
   return (
     <div style={{
-      minHeight: '100vh',
-      overflowY: 'auto',
-      overflowX: 'hidden',
+      position: 'fixed',
+      inset: 0,
+      overflowY: 'scroll',
       WebkitOverflowScrolling: 'touch' as any,
-      background: 'var(--bg, #eef0f6)',
-      color: 'var(--ink, #191b27)',
+      background: '#f5f6fb',
+      color: '#191b27',
+      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
     }}>
       {children}
     </div>
