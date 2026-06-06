@@ -388,6 +388,7 @@ button{font-family:inherit}
 }
 /* tabla con scroll horizontal en mobile */
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
+.public-page{min-height:100vh;overflow-y:auto!important;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 
 /* ── densidad compacta ── */
 html.compact .nav-i{padding:7px 10px;font-size:13px}
