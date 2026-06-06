@@ -1,12 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { CommerceVisualTheme } from '@/components/shell/VisualTheme';
+import { getVisualConfig } from '@/components/shell/VisualTheme';
+import { useTheme } from '@/hooks/useTheme';
+import { createClient } from '@/lib/supabase/client';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
+
+const DEFAULT_PALETTE = ['#7F77DD', '#27C3D8', '#B57BE0'];
 
 const NAV = [
   { href: '/empleado/mesas', label: 'Mesas', icon: 'mesas', title: 'Mesas', sub: 'Abre, despacha y cobra' },
@@ -29,6 +33,40 @@ interface EmpShellProps {
 }
 
 export function EmpShell({ profile, view, children }: EmpShellProps) {
+  const [themeMode, setThemeMode] = useState('dark');
+  const [themePalette, setThemePalette] = useState(DEFAULT_PALETTE);
+  useTheme(themeMode, themePalette);
+
+  useEffect(() => {
+    const id = profile.comercio_id;
+    if (!id) return;
+    const supabase = createClient();
+
+    supabase.from('comercios').select('settings, color').eq('id', id).maybeSingle()
+      .then(({ data }) => {
+        if (data?.settings) {
+          const cfg = getVisualConfig(data.settings as Record<string, unknown>, data.color ?? undefined);
+          setThemeMode(cfg.mode);
+          setThemePalette(cfg.palette);
+        }
+      });
+
+    const channel = supabase
+      .channel(`emp-theme-${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comercios', filter: `id=eq.${id}` },
+        (payload) => {
+          const row = payload.new as { settings?: Record<string, unknown>; color?: string };
+          if (row.settings) {
+            const cfg = getVisualConfig(row.settings, row.color ?? undefined);
+            setThemeMode(cfg.mode);
+            setThemePalette(cfg.palette);
+          }
+        })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile.comercio_id]);
+
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -39,7 +77,6 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
 
   return (
     <div className="app">
-      <CommerceVisualTheme comercioId={profile.comercio_id} />
       <Sidebar profile={profile} navItems={NAV} shopName={profile.full_name} shopSub={profile.alias ?? 'Empleado'} shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

@@ -4,7 +4,8 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { VisualTheme } from '@/components/shell/VisualTheme';
+import { getVisualConfig } from '@/components/shell/VisualTheme';
+import { useTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
 
@@ -26,6 +27,8 @@ interface SRShellProps {
 }
 
 export function SRShell({ profile, view, children }: SRShellProps) {
+  const _theme = getVisualConfig(profile.panel_theme, '#B57BE0');
+  useTheme(_theme.mode, _theme.palette);
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -39,7 +42,6 @@ export function SRShell({ profile, view, children }: SRShellProps) {
 
   return (
     <div className="app">
-      <VisualTheme settings={profile.panel_theme} fallbackColor="#B57BE0" />
       <Sidebar profile={profile} navItems={NAV} shopName="OperUX · Sistema" shopSub="Super Root · Control total" shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

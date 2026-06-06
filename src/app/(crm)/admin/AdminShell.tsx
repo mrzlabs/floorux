@@ -4,7 +4,8 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { VisualTheme } from '@/components/shell/VisualTheme';
+import { getVisualConfig } from '@/components/shell/VisualTheme';
+import { useTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile, Comercio } from '@/types/db';
 
@@ -37,6 +38,8 @@ interface AdminShellProps {
 }
 
 export function AdminShell({ profile, comercio, view, lowStockCount = 0, operating = false, returnPath = null, children }: AdminShellProps) {
+  const _theme = getVisualConfig(comercio.settings, comercio.color);
+  useTheme(_theme.mode, _theme.palette);
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -48,7 +51,6 @@ export function AdminShell({ profile, comercio, view, lowStockCount = 0, operati
 
   return (
     <div className="app">
-      <VisualTheme settings={comercio.settings} fallbackColor={comercio.color} />
       <Sidebar profile={profile} navItems={nav} shopName={comercio.name} shopSub={`${comercio.city} · Plan ${comercio.plan}`} shopColor={comercio.color} shopImg={comercio.photo_url} open={sideOpen} onClose={() => setSideOpen(false)} returnPath={returnPath} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

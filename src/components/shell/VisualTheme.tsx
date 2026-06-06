@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { applyTheme } from '@/hooks/useTheme';
 
 export interface VisualConfig {
   mode: 'dark' | 'light';
@@ -35,11 +36,7 @@ export function getVisualConfig(settings: Record<string, unknown>, fallbackColor
 }
 
 export function applyVisualConfig(config: VisualConfig) {
-  const root = document.documentElement;
-  root.dataset.theme = config.mode;
-  root.style.setProperty('--accent', config.palette[0]);
-  root.style.setProperty('--accent2', config.palette[1]);
-  root.style.setProperty('--accent3', config.palette[2]);
+  applyTheme(config.mode, config.palette);
 }
 
 export function VisualTheme({ settings, fallbackColor }: { settings: Record<string, unknown>; fallbackColor?: string }) {

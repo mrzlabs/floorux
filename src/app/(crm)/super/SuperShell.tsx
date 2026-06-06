@@ -4,7 +4,8 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { VisualTheme } from '@/components/shell/VisualTheme';
+import { getVisualConfig } from '@/components/shell/VisualTheme';
+import { useTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
 
@@ -23,6 +24,8 @@ interface SuperShellProps {
 }
 
 export function SuperShell({ profile, view, children }: SuperShellProps) {
+  const _theme = getVisualConfig(profile.panel_theme, profile.color);
+  useTheme(_theme.mode, _theme.palette);
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -33,7 +36,6 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
 
   return (
     <div className="app">
-      <VisualTheme settings={profile.panel_theme} fallbackColor={profile.color} />
       <Sidebar profile={profile} navItems={NAV} shopName={`Grupo · ${profile.alias ?? profile.full_name}`} shopSub={`Super Admin · ${profile.email}`} shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
