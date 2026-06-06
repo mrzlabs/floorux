@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
+import { VisualTheme } from '@/components/shell/VisualTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
 
@@ -15,6 +16,7 @@ const NAV = [
   { href: '/super-root/logs', label: 'Logs', icon: 'history', title: 'Logs de auditoría', sub: 'Registro de actividad' },
   { href: '/super-root/auditoria', label: 'Auditoría', icon: 'check', title: 'Auditoría de inventario', sub: 'Cuadre global inventario vs ventas' },
   { href: '/super-root/soporte', label: 'Soporte', icon: 'chat', title: 'Soporte de la red', sub: 'Solicitudes directas de Super Admins' },
+  { href: '/super-root/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil y personalización' },
 ];
 
 interface SRShellProps {
@@ -36,8 +38,9 @@ export function SRShell({ profile, view, children }: SRShellProps) {
   const item = NAV.find(n => n.href.includes(view)) ?? NAV[0];
 
   return (
-    <div className="app" style={{ ['--accent' as any]: '#B57BE0', ['--bg' as any]: '#070511' }}>
-      <Sidebar profile={profile} navItems={NAV} shopName="OperUX · Sistema" shopSub="Super Root · Control total" shopColor="#B57BE0" open={sideOpen} onClose={() => setSideOpen(false)} />
+    <div className="app">
+      <VisualTheme settings={profile.panel_theme} fallbackColor="#B57BE0" />
+      <Sidebar profile={profile} navItems={NAV} shopName="OperUX · Sistema" shopSub="Super Root · Control total" shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
         <Topbar title={item.title} sub={item.sub} onMenu={() => setSideOpen(true)} onHelp={() => setHelp(h => !h)} />

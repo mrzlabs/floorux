@@ -70,8 +70,24 @@ export function CommerceVisualTheme({ comercioId }: { comercioId: string | null 
     }
 
     loadTheme();
+
+    const channel = supabase
+      .channel(`theme-${comercioId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'comercios', filter: `id=eq.${comercioId}` },
+        (payload) => {
+          const row = payload.new as { settings?: Record<string, unknown>; color?: string };
+          if (row.settings) {
+            applyVisualConfig(getVisualConfig(row.settings, row.color));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       active = false;
+      supabase.removeChannel(channel);
     };
   }, [comercioId]);
 
