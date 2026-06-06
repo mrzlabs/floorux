@@ -1,66 +1,26 @@
 export interface CatalogItem {
-  reference: string;
   name: string;
-  dist: string;
   cat: string;
-  sub: string;
   unit: string;
+  cost: number;
+  price: number;
+  stock: number;
+  min_stock: number;
 }
 
-const item = (
-  reference: string,
-  name: string,
-  dist: string,
-  cat: string,
-  sub: string,
-  unit: string,
-): CatalogItem => ({ reference, name, dist, cat, sub, unit });
-
 export const DEFAULT_CATALOG: CatalogItem[] = [
-  item('agu', 'Águila', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('agl', 'Águila Light', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('pok', 'Poker', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('cos', 'Costeña', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('pil', 'Pilsen', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('ccd', 'Club Colombia Dorada', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('ccr', 'Club Colombia Roja', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('cor', 'Corona', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('stl', 'Stella Artois', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('bud', 'Budweiser', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('bbc', 'BBC Cajicá', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('rds', 'Redd’s', 'Bavaria', 'licor', 'Cerveza', 'Botella 330ml'),
-  item('man', 'Postobón Manzana', 'Postobón', 'bebida', 'Gaseosa', 'Personal 400ml'),
-  item('col', 'Colombiana', 'Postobón', 'bebida', 'Gaseosa', 'Personal 400ml'),
-  item('pep', 'Pepsi', 'Postobón', 'bebida', 'Gaseosa', 'Personal 400ml'),
-  item('7up', '7Up', 'Postobón', 'bebida', 'Gaseosa', 'Personal 400ml'),
-  item('uva', 'Postobón Uva', 'Postobón', 'bebida', 'Gaseosa', 'Personal 400ml'),
-  item('cri', 'Agua Cristal', 'Postobón', 'bebida', 'Agua', 'Botella 600ml'),
-  item('h2o', 'H2OH!', 'Postobón', 'bebida', 'Agua', 'Botella 600ml'),
-  item('hit', 'Hit Naranja', 'Postobón', 'bebida', 'Jugo', 'Botella 400ml'),
-  item('mrt', 'Mr. Tea Limón', 'Postobón', 'bebida', 'Té', 'Botella 400ml'),
-  item('pkk', 'Peak', 'Postobón', 'bebida', 'Energizante', 'Lata 269ml'),
-  item('spd', 'Speed Max', 'Postobón', 'bebida', 'Energizante', 'Lata 269ml'),
-  item('gat', 'Gatorade', 'Postobón', 'bebida', 'Hidratante', 'Botella 500ml'),
-  item('big', 'Big Cola', 'AJE', 'bebida', 'Gaseosa', 'Personal 400ml'),
-  item('cif', 'Cifrut', 'AJE', 'bebida', 'Jugo', 'Botella 400ml'),
-  item('vol', 'Volt', 'AJE', 'bebida', 'Energizante', 'Lata 269ml'),
-  item('cie', 'Cielo', 'AJE', 'bebida', 'Agua', 'Botella 600ml'),
-  item('spo', 'Sporade', 'AJE', 'bebida', 'Hidratante', 'Botella 500ml'),
-  item('fte', 'Free Tea', 'AJE', 'bebida', 'Té', 'Botella 400ml'),
-  item('ant', 'Aguardiente Antioqueño', 'Licores', 'licor', 'Aguardiente', 'Botella 750ml'),
-  item('nec', 'Aguardiente Néctar', 'Licores', 'licor', 'Aguardiente', 'Botella 750ml'),
-  item('med', 'Ron Medellín Añejo', 'Licores', 'licor', 'Ron', 'Botella 750ml'),
-  item('vca', 'Ron Viejo de Caldas', 'Licores', 'licor', 'Ron', 'Botella 750ml'),
-  item('opr', 'Old Parr', 'Licores', 'licor', 'Whisky', 'Botella 750ml'),
-  item('buc', 'Buchanan’s Deluxe', 'Licores', 'licor', 'Whisky', 'Botella 750ml'),
-  item('smi', 'Smirnoff', 'Licores', 'licor', 'Vodka', 'Botella 750ml'),
-  item('jcu', 'José Cuervo', 'Licores', 'licor', 'Tequila', 'Botella 750ml'),
-  item('pap', 'Papas Margarita', 'Snacks', 'snack', 'Papas', 'Paquete 105g'),
-  item('man2', 'Maní La Especial', 'Snacks', 'snack', 'Maní', 'Paquete 45g'),
-  item('pic', 'Picada para 2', 'Cocina', 'snack', 'Picada', 'Plato'),
-  item('mar', 'Marlboro', 'Tabaco', 'cigarro', 'Caja', 'Cajetilla x20'),
-  item('lm', 'L&M', 'Tabaco', 'cigarro', 'Caja', 'Cajetilla x20'),
-  item('cb1', 'Cuba Libre', 'Casa', 'coctel', 'Cóctel de la casa', 'Vaso'),
-  item('mji', 'Mojito', 'Casa', 'coctel', 'Cóctel de la casa', 'Vaso'),
-  item('grg', 'Gin Tonic', 'Casa', 'coctel', 'Cóctel de la casa', 'Vaso'),
+  { name: 'Águila',                cat: 'Cerveza',     unit: 'Botella 330ml',   cost: 2200,  price: 7000,  stock: 96,  min_stock: 36 },
+  { name: 'Águila Light',          cat: 'Cerveza',     unit: 'Botella 330ml',   cost: 2200,  price: 7000,  stock: 60,  min_stock: 36 },
+  { name: 'Poker',                 cat: 'Cerveza',     unit: 'Botella 330ml',   cost: 2100,  price: 6500,  stock: 8,   min_stock: 36 },
+  { name: 'Costeña',               cat: 'Cerveza',     unit: 'Botella 330ml',   cost: 2000,  price: 6000,  stock: 120, min_stock: 36 },
+  { name: 'Club Colombia Dorada',  cat: 'Cerveza',     unit: 'Botella 330ml',   cost: 3000,  price: 9000,  stock: 52,  min_stock: 24 },
+  { name: 'Corona',                cat: 'Cerveza',     unit: 'Botella 330ml',   cost: 5200,  price: 12000, stock: 0,   min_stock: 18 },
+  { name: 'Águila Postobón Manzana', cat: 'Gaseosa',   unit: 'Personal 400ml',  cost: 1400,  price: 4000,  stock: 72,  min_stock: 24 },
+  { name: 'Colombiana',            cat: 'Gaseosa',     unit: 'Personal 400ml',  cost: 1400,  price: 4000,  stock: 64,  min_stock: 24 },
+  { name: 'Agua Cristal',          cat: 'Agua',        unit: 'Botella 600ml',   cost: 900,   price: 3000,  stock: 88,  min_stock: 30 },
+  { name: 'Aguardiente Antioqueño', cat: 'Aguardiente', unit: 'Botella 750ml',  cost: 32000, price: 75000, stock: 14,  min_stock: 6  },
+  { name: 'Ron Medellín Añejo',    cat: 'Ron',         unit: 'Botella 750ml',   cost: 38000, price: 85000, stock: 8,   min_stock: 5  },
+  { name: 'Cuba Libre',            cat: 'Cóctel',      unit: 'Vaso',            cost: 6000,  price: 18000, stock: 99,  min_stock: 0  },
+  { name: 'Mojito',                cat: 'Cóctel',      unit: 'Vaso',            cost: 7000,  price: 20000, stock: 99,  min_stock: 0  },
+  { name: 'Papas Margarita',       cat: 'Snack',       unit: 'Paquete 105g',    cost: 2200,  price: 5000,  stock: 40,  min_stock: 18 },
 ];

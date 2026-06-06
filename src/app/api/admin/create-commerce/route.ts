@@ -57,11 +57,7 @@ export async function POST(req: NextRequest) {
   const products = DEFAULT_CATALOG.map(product => ({
     ...product,
     comercio_id: comercio.id,
-    cost: 0,
-    price: 0,
-    stock: 0,
-    initial_stock: 0,
-    min_stock: 0,
+    initial_stock: product.stock,
   }));
   const { error: productsError } = await admin.from('products').insert(products);
   if (productsError) {
