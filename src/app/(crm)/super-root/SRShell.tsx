@@ -1,12 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { useEffect } from 'react';
 import { applyFullTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
+import { createClient } from '@/lib/supabase/client';
 import type { Profile } from '@/types/db';
 
 const NAV = [
@@ -29,7 +29,9 @@ interface SRShellProps {
 
 export function SRShell({ profile, view, children }: SRShellProps) {
   const pt = profile.panel_theme as Record<string, unknown>;
-  const brandLogo = typeof pt.brandLogo === 'string' ? pt.brandLogo : undefined;
+  const [brandLogo, setBrandLogo] = useState<string>(
+    typeof pt.brandLogo === 'string' ? pt.brandLogo : ''
+  );
 
   useEffect(() => {
     applyFullTheme(pt, '#B57BE0');
@@ -40,17 +42,38 @@ export function SRShell({ profile, view, children }: SRShellProps) {
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
   const [toast, setToast] = useState<{ msg: string } | null>(null);
-  const fire = (msg: string) => {
-    setToast({ msg });
-    setTimeout(() => setToast(null), 2400);
-  };
+  const fire = (msg: string) => { setToast({ msg }); setTimeout(() => setToast(null), 2400); };
+  const supabase = createClient();
+
+  async function handleBrandLogoUpload(file: File) {
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const path = `profiles/${profile.id}/brand-logo.${ext}`;
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    if (error) { fire('No se pudo subir el logo'); return; }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const url = data.publicUrl + '?v=' + Date.now();
+    const updatedPt = { ...pt, brandLogo: url };
+    await supabase.from('profiles').update({ panel_theme: updatedPt }).eq('id', profile.id);
+    setBrandLogo(url);
+    fire('Logo actualizado');
+  }
 
   const item = NAV.find(n => n.href.includes(view)) ?? NAV[0];
 
   return (
     <div className="app sr-shell">
       <style>{`.sr-shell .nav-i{font-size:15px}.sr-shell .nav-i svg{width:20px;height:20px}`}</style>
-      <Sidebar profile={profile} navItems={NAV} shopName="OperUX · Sistema" shopSub="Super Root · Control total" shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} brandLogo={brandLogo} />
+      <Sidebar
+        profile={profile}
+        navItems={NAV}
+        shopName="OperUX · Sistema"
+        shopSub="Super Root · Control total"
+        shopColor={profile.color}
+        open={sideOpen}
+        onClose={() => setSideOpen(false)}
+        brandLogo={brandLogo || null}
+        onBrandLogoUpload={handleBrandLogoUpload}
+      />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
         <Topbar title={item.title} sub={item.sub} onMenu={() => setSideOpen(true)} onHelp={() => setHelp(h => !h)} />
@@ -70,11 +93,7 @@ export function SRShell({ profile, view, children }: SRShellProps) {
           'Usa auditoría para contrastar inventario y ventas.',
         ]}
         dancing={dancing}
-        onDance={() => {
-          setDancing(true);
-          fire('Maylo está activo');
-          setTimeout(() => setDancing(false), 4800);
-        }}
+        onDance={() => { setDancing(true); fire('Maylo está activo'); setTimeout(() => setDancing(false), 4800); }}
       />
       <MayloDock onOpen={() => setHelp(true)} message="Control global listo. Revisa actividad, suscripciones y alertas de inventario." />
       {help && <div className="scrim" style={{ zIndex: 85 }} onClick={() => setHelp(false)} />}

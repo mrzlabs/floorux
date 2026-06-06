@@ -1,4 +1,5 @@
 'use client';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
@@ -24,10 +25,15 @@ interface SidebarProps {
   open?: boolean;
   returnPath?: string | null;
   brandLogo?: string | null;
+  onBrandLogoUpload?: (file: File) => Promise<void>;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo }: SidebarProps) {
+export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload }: SidebarProps) {
   const pathname = usePathname();
+  const [logoHover, setLogoHover] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const role = profile.role === 'super_super_admin'
     ? { label: 'Super Root', icon: 'super' }
     : profile.role === 'super_admin'
@@ -36,20 +42,60 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
         ? { label: 'Admin', icon: 'admin' }
         : { label: 'Empleado', icon: 'empleado' };
 
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !onBrandLogoUpload) return;
+    setUploading(true);
+    await onBrandLogoUpload(file);
+    setUploading(false);
+    e.target.value = '';
+  }
+
   return (
     <aside className={'side' + (open ? ' open' : '')}>
       <div className="brand">
-        <span className="brand-mark" style={{ overflow: 'hidden' }}>
-          {brandLogo
-            ? <img src={brandLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : (
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M5 19V8l7-4 7 4v11M9 19v-5h6v5" stroke="#0b0a12" strokeWidth="2" strokeLinejoin="round" />
-                <circle cx="12" cy="10" r="1.6" fill="#0b0a12" />
-              </svg>
-            )
-          }
+        {/* brand-mark — interactivo solo cuando onBrandLogoUpload existe */}
+        <span
+          className="brand-mark"
+          style={{
+            overflow: 'hidden',
+            position: 'relative',
+            cursor: onBrandLogoUpload ? 'pointer' : undefined,
+          }}
+          onMouseEnter={() => onBrandLogoUpload && setLogoHover(true)}
+          onMouseLeave={() => setLogoHover(false)}
+          onClick={() => onBrandLogoUpload && fileRef.current?.click()}
+        >
+          {uploading ? (
+            <span className="live" style={{ fontSize: 11 }}><i /></span>
+          ) : brandLogo ? (
+            <img src={brandLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 19V8l7-4 7 4v11M9 19v-5h6v5" stroke="#0b0a12" strokeWidth="2" strokeLinejoin="round" />
+              <circle cx="12" cy="10" r="1.6" fill="#0b0a12" />
+            </svg>
+          )}
+          {/* overlay hover */}
+          {onBrandLogoUpload && logoHover && !uploading && (
+            <span style={{
+              position: 'absolute', inset: 0, borderRadius: 'inherit',
+              background: 'rgba(0,0,0,.55)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', color: '#fff',
+            }}>
+              <Icon name="camera" s={15} />
+            </span>
+          )}
         </span>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleFile}
+        />
+
         <div>
           <div className="brand-tx">FloorUX<span>.</span></div>
           <div className="brand-sub">OperUX · CRM</div>
