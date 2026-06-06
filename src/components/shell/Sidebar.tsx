@@ -26,6 +26,11 @@ interface SidebarProps {
 
 export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, onClose, open, returnPath }: SidebarProps) {
   const pathname = usePathname();
+  const role = profile.role === 'super_admin'
+    ? { label: 'Super Admin', icon: 'super' }
+    : profile.role === 'admin'
+      ? { label: 'Admin', icon: 'admin' }
+      : { label: 'Empleado', icon: 'empleado' };
 
   return (
     <aside className={'side' + (open ? ' open' : '')}>
@@ -40,6 +45,13 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, onClo
           <div className="brand-tx">FloorUX<span>.</span></div>
           <div className="brand-sub">OperUX · CRM</div>
         </div>
+      </div>
+
+      <div className="rolepick" aria-label="Rol actual">
+        <button className="on" type="button" disabled>
+          <Icon name={role.icon} />
+          {role.label}
+        </button>
       </div>
 
       <nav className="nav">

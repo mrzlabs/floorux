@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
+import { CommerceVisualTheme } from '@/components/shell/VisualTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
 
@@ -37,7 +38,8 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
   const fire = (msg: string, icon = 'check') => { setToast({ msg, icon }); setTimeout(() => setToast(null), 2400); };
 
   return (
-    <div className="app" style={{ ['--accent' as any]: profile.color }}>
+    <div className="app">
+      <CommerceVisualTheme comercioId={profile.comercio_id} />
       <Sidebar profile={profile} navItems={NAV} shopName={profile.full_name} shopSub={profile.alias ?? 'Empleado'} shopColor={profile.color} open={sideOpen} onClose={() => setSideOpen(false)} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

@@ -5,7 +5,17 @@ import { Icon } from '@/components/ui/Icon';
 import { Field } from '@/components/ui/Field';
 import { Avatar } from '@/components/ui/Avatar';
 import { useToast } from '@/components/ui/ToastContext';
+import { applyVisualConfig, getVisualConfig, type VisualConfig } from '@/components/shell/VisualTheme';
 import type { Profile, Comercio } from '@/types/db';
+
+const PALETTES = [
+  { name: 'Violeta', c: ['#7F77DD', '#27C3D8', '#B57BE0'] },
+  { name: 'Fuego', c: ['#F5634A', '#F5A623', '#E040FB'] },
+  { name: 'Bosque', c: ['#34d399', '#3b82f6', '#a78bfa'] },
+  { name: 'Rosa', c: ['#f472b6', '#fb923c', '#a78bfa'] },
+  { name: 'Hielo', c: ['#38bdf8', '#22d3ee', '#818cf8'] },
+  { name: 'Oro', c: ['#F5C400', '#f59e42', '#E0708A'] },
+];
 
 interface AdminPerfilProps {
   profile: Profile;
@@ -18,6 +28,8 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ full_name: profile.full_name, alias: profile.alias ?? '', color: profile.color });
   const [bizForm, setBizForm] = useState({ name: comercio.name, address: comercio.address ?? '', phone: comercio.phone ?? '', nit: comercio.nit ?? '', color: comercio.color });
+  const [visual, setVisual] = useState(() => getVisualConfig(comercio.settings));
+  const [savingVisual, setSavingVisual] = useState(false);
   const supabase = createClient();
 
   async function saveProfile() {
@@ -27,8 +39,31 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   }
 
   async function saveBiz() {
-    await supabase.from('comercios').update({ name: bizForm.name, address: bizForm.address || null, phone: bizForm.phone || null, nit: bizForm.nit || null, color: bizForm.color }).eq('id', comercio.id);
+    const { error } = await supabase.from('comercios').update({ name: bizForm.name, address: bizForm.address || null, phone: bizForm.phone || null, nit: bizForm.nit || null, color: bizForm.color }).eq('id', comercio.id);
+    if (error) {
+      toast('No se pudo actualizar el local', 'alert');
+      return;
+    }
     toast('Local actualizado', 'check');
+  }
+
+  async function saveVisual(next: VisualConfig) {
+    const previous = visual;
+    setVisual(next);
+    setSavingVisual(true);
+    applyVisualConfig(next);
+
+    const settings = { ...comercio.settings, config_visual: next };
+    const { error } = await supabase.from('comercios').update({ settings }).eq('id', comercio.id);
+    if (error) {
+      setVisual(previous);
+      applyVisualConfig(previous);
+      toast('No se pudo guardar la personalización', 'alert');
+      setSavingVisual(false);
+      return;
+    }
+    setSavingVisual(false);
+    toast('Personalización actualizada', 'check');
   }
 
   async function uploadCommerce(file?: File) {
@@ -88,6 +123,38 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
           <div className="biz-row"><span>Renovación</span><b>Día {comercio.renewal_day ?? '—'}</b></div>
           <button className="btn pri" style={{ marginTop: 16, width: '100%' }} onClick={saveBiz}><Icon name="check" /> Guardar cambios</button>
         </div>
+      </div>
+
+      <div className="card" style={{ padding: 20, marginTop: 14 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 16 }}>Apariencia del panel</h2>
+        <Field label="Tema">
+          <div className="theme-seg">
+            <button disabled={savingVisual} className={visual.mode === 'dark' ? 'on' : ''} onClick={() => saveVisual({ ...visual, mode: 'dark' })}>
+              <Icon name="moon" s={16} /> Oscuro
+            </button>
+            <button disabled={savingVisual} className={visual.mode === 'light' ? 'on' : ''} onClick={() => saveVisual({ ...visual, mode: 'light' })}>
+              <Icon name="sun" s={16} /> Claro
+            </button>
+          </div>
+        </Field>
+        <Field label="Paleta">
+          <div className="swatches">
+            {PALETTES.map(palette => {
+              const active = palette.c.every((color, index) => color === visual.palette[index]);
+              return (
+                <button
+                  key={palette.name}
+                  className={'swatch' + (active ? ' on' : '')}
+                  style={{ background: `linear-gradient(135deg, ${palette.c.join(', ')})` }}
+                  title={palette.name}
+                  aria-label={palette.name}
+                  disabled={savingVisual}
+                  onClick={() => saveVisual({ ...visual, palette: palette.c })}
+                />
+              );
+            })}
+          </div>
+        </Field>
       </div>
     </div>
   );

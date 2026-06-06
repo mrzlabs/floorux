@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
+import { VisualTheme } from '@/components/shell/VisualTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile, Comercio } from '@/types/db';
 
@@ -46,7 +47,8 @@ export function AdminShell({ profile, comercio, view, lowStockCount = 0, operati
   const item = nav.find(n => n.href.endsWith(view)) ?? nav[0];
 
   return (
-    <div className="app" style={{ ['--accent' as any]: comercio.color }}>
+    <div className="app">
+      <VisualTheme settings={comercio.settings} />
       <Sidebar profile={profile} navItems={nav} shopName={comercio.name} shopSub={`${comercio.city} · Plan ${comercio.plan}`} shopColor={comercio.color} open={sideOpen} onClose={() => setSideOpen(false)} returnPath={returnPath} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
