@@ -1,0 +1,98 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { DEFAULT_CATALOG } from '@/lib/default-catalog';
+import { writeAuditLog } from '@/lib/audit';
+
+const schema = z.object({
+  name: z.string().min(2),
+  type: z.enum(['Discoteca', 'Taberna', 'Bar']),
+  city: z.string().min(2),
+  kind: z.enum(['Principal', 'Franquicia']),
+  plan: z.enum(['Básico', 'Pro']),
+  tables_count: z.coerce.number().int().min(1).max(500),
+  plan_cost: z.coerce.number().min(0),
+  subscription_start: z.string().date(),
+  subscription_end: z.string().date().nullable().optional(),
+  renewal_day: z.coerce.number().int().min(1).max(28).nullable().optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#7F77DD'),
+});
+
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+
+  const { data: actor } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (!actor || !['super_super_admin', 'super_admin'].includes(actor.role)) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
+  const parsed = schema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'validation', details: parsed.error.format() }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  const payload = {
+    ...parsed.data,
+    super_admin_id: user.id,
+    status: 'activo',
+    subscription_status: 'active',
+  };
+  const { data: comercio, error } = await admin
+    .from('comercios')
+    .insert(payload)
+    .select('*')
+    .single();
+  if (error || !comercio) {
+    return NextResponse.json({ error: error?.message ?? 'create_failed' }, { status: 500 });
+  }
+
+  const products = DEFAULT_CATALOG.map(product => ({
+    ...product,
+    comercio_id: comercio.id,
+    cost: 0,
+    price: 0,
+    stock: 0,
+    initial_stock: 0,
+    min_stock: 0,
+  }));
+  const { error: productsError } = await admin.from('products').insert(products);
+  if (productsError) {
+    await admin.from('comercios').delete().eq('id', comercio.id);
+    return NextResponse.json({ error: productsError.message }, { status: 500 });
+  }
+
+  const { error: historyError } = await admin.from('subscription_history').insert({
+    comercio_id: comercio.id,
+    plan: comercio.plan,
+    cost: comercio.plan_cost,
+    starts_at: comercio.subscription_start,
+    ends_at: comercio.subscription_end,
+    status: 'active',
+    notes: 'Suscripción inicial',
+    created_by: user.id,
+  });
+  if (historyError) {
+    await admin.from('comercios').delete().eq('id', comercio.id);
+    return NextResponse.json({ error: historyError.message }, { status: 500 });
+  }
+
+  await writeAuditLog({
+    actor_id: user.id,
+    actor_role: actor.role,
+    action: 'CREATE',
+    table_name: 'comercios',
+    record_id: comercio.id,
+    payload: { name: comercio.name, plan: comercio.plan, catalog_items: products.length },
+    ip: req.headers.get('x-forwarded-for') ?? undefined,
+  });
+
+  return NextResponse.json({ comercio, catalogItems: products.length });
+}

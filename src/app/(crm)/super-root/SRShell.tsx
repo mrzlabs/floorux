@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
+import { MayloDock } from '@/components/shell/MayloDock';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile } from '@/types/db';
 
@@ -13,6 +14,7 @@ const NAV = [
   { href: '/super-root/usuarios', label: 'Usuarios', icon: 'users', title: 'Usuarios', sub: 'Todos los usuarios del sistema' },
   { href: '/super-root/logs', label: 'Logs', icon: 'history', title: 'Logs de auditoría', sub: 'Registro de actividad' },
   { href: '/super-root/auditoria', label: 'Auditoría', icon: 'check', title: 'Auditoría de inventario', sub: 'Cuadre global inventario vs ventas' },
+  { href: '/super-root/soporte', label: 'Soporte', icon: 'chat', title: 'Soporte de la red', sub: 'Solicitudes directas de Super Admins' },
 ];
 
 interface SRShellProps {
@@ -61,6 +63,7 @@ export function SRShell({ profile, view, children }: SRShellProps) {
           setTimeout(() => setDancing(false), 4800);
         }}
       />
+      <MayloDock onOpen={() => setHelp(true)} message="Control global listo. Revisa actividad, suscripciones y alertas de inventario." />
       {help && <div className="scrim" style={{ zIndex: 85 }} onClick={() => setHelp(false)} />}
       {toast && <div className="toast">{toast.msg}</div>}
     </div>

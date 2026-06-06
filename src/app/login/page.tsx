@@ -11,6 +11,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [notice, setNotice] = useState('');
   const [mayloReady, setMayloReady] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,6 +57,20 @@ function LoginForm() {
     router.push(ROLE_ROUTES[profile.role as Role]);
   }
 
+  async function forgotPassword() {
+    setError('');
+    setNotice('');
+    if (!email) {
+      setError('Escribe el email de la cuenta.');
+      return;
+    }
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (resetError) setError('No se pudo enviar el enlace de recuperación.');
+    else setNotice('Enlace de recuperación enviado al correo.');
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
@@ -81,6 +97,7 @@ function LoginForm() {
               <span style={{ fontSize: 13 }}>{error}</span>
             </div>
           )}
+          {notice && <div className="alert-banner" style={{ marginBottom: 16 }}>{notice}</div>}
 
           <div className="field">
             <label>Email</label>
@@ -88,8 +105,12 @@ function LoginForm() {
           </div>
           <div className="field">
             <label>Contraseña</label>
-            <input className="inp" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="inp" type={showPassword ? 'text' : 'password'} placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} required />
+              <button className="btn sm" type="button" onClick={() => setShowPassword(value => !value)}>{showPassword ? 'Ocultar' : 'Ver'}</button>
+            </div>
           </div>
+          <button className="btn ghost block" type="button" onClick={forgotPassword}>Olvidé mi contraseña</button>
 
           <button className="btn pri block" type="submit" disabled={loading} style={{ marginTop: 20, height: 48 }}>
             {loading ? 'Ingresando…' : <><Icon name="lock" s={16} /> Ingresar</>}
@@ -100,6 +121,15 @@ function LoginForm() {
           El acceso es solo por invitación. Contacta a tu administrador.
         </p>
       </div>
+      {loading && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(7,5,17,.94)', display: 'grid', placeItems: 'center' }}>
+          <div style={{ textAlign: 'center', width: 180 }}>
+            {mayloReady && <div dangerouslySetInnerHTML={{ __html: (window as any).maylo?.({ eyes: 'happy', mouth: 'talk', arms: 'welcome', panel: true }) ?? '' }} />}
+            <b style={{ display: 'block', marginTop: 14 }}>Estamos listos para comenzar</b>
+            <span className="muted" style={{ fontSize: 12 }}>Validando acceso</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -26,7 +26,7 @@ export function exportCSV(filename: string, rows: (string | number | null | unde
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-export const DEMO_TODAY = new Date(2026, 5, 5);
+export const DEMO_TODAY = new Date();
 export const MES_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 export const isoDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;

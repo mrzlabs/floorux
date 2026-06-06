@@ -16,26 +16,59 @@ export function SRUsuarios() {
   const [filter, setFilter] = useState<string>('all');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(0);
+  const [resetting, setResetting] = useState<Profile | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [links, setLinks] = useState<Record<string, string>>({});
   const PAGE = 20;
   const supabase = createClient();
 
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const { data } = await supabase.from('profiles').select('*').order('full_name');
+    const [{ data }, { data: commerces }, { data: supers }] = await Promise.all([
+      supabase.from('profiles').select('*').order('full_name'),
+      supabase.from('comercios').select('id, name'),
+      supabase.from('profiles').select('id, full_name').eq('role', 'super_admin'),
+    ]);
+    const nextLinks: Record<string, string> = {};
+    (commerces ?? []).forEach(c => { nextLinks[c.id] = c.name; });
+    (supers ?? []).forEach(s => { nextLinks[s.id] = s.full_name; });
+    setLinks(nextLinks);
     setUsers((data ?? []) as Profile[]);
   }
 
+  async function userAction(u: Profile, action: string, password?: string) {
+    const response = await fetch('/api/admin/user-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: u.id, action, password }),
+    });
+    if (!response.ok) {
+      toast('La operación no pudo completarse', 'alert');
+      return false;
+    }
+    return true;
+  }
+
   async function toggle(u: Profile) {
-    await supabase.from('profiles').update({ activo: !u.activo }).eq('id', u.id);
+    if (!await userAction(u, u.activo ? 'suspend' : 'activate')) return;
     toast(`${u.full_name} ${u.activo ? 'suspendido' : 'activado'}`, u.activo ? 'lock' : 'check');
     await load();
   }
 
   async function deleteUser(u: Profile) {
-    await supabase.from('profiles').update({ activo: false } as any).eq('id', u.id);
+    if (!await userAction(u, 'delete')) return;
     toast(`${u.full_name} eliminado`, 'trash');
     await load();
+  }
+
+  async function resetPassword() {
+    if (!resetting || newPassword.length < 8) return;
+    if (await userAction(resetting, 'reset_password', newPassword)) {
+      toast('Contraseña temporal actualizada', 'check');
+      setResetting(null);
+      setNewPassword('');
+    }
   }
 
   const filtered = users.filter(u =>
@@ -58,17 +91,19 @@ export function SRUsuarios() {
       </div>
       <div className="card">
         <table className="tbl">
-          <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Enlazado a</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             {page_data.map(u => (
               <tr key={u.id}>
                 <td><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Avatar name={u.full_name} color={u.color} size="sm" /><b>{u.full_name}</b></div></td>
                 <td className="muted" style={{ fontSize: 12 }}>{u.email}</td>
                 <td><Chip>{u.role}</Chip></td>
+                <td className="muted" style={{ fontSize: 12 }}>{links[u.comercio_id ?? ''] ?? links[u.super_admin_id ?? ''] ?? 'Plataforma'}</td>
                 <td><Chip color={u.activo ? 'var(--green)' : 'var(--red)'}>{u.activo ? 'Activo' : 'Suspendido'}</Chip></td>
                 <td>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button className={'sw' + (u.activo ? ' on' : '')} onClick={() => toggle(u)} />
+                    <button className="btn sm" onClick={() => setResetting(u)} title="Reiniciar contraseña"><Icon name="lock" s={13} /></button>
                     <button className="btn sm" style={{ color: 'var(--red)' }} onClick={() => deleteUser(u)}><Icon name="trash" s={13} /></button>
                   </div>
                 </td>
@@ -82,6 +117,12 @@ export function SRUsuarios() {
           <button className="btn sm" disabled={(page + 1) * PAGE >= filtered.length} onClick={() => setPage(p => p + 1)}>Siguiente →</button>
         </div>
       </div>
+      {resetting && (
+        <Modal title={`Reiniciar clave · ${resetting.full_name}`} icon="lock" onClose={() => setResetting(null)}
+          footer={<><button className="btn ghost" onClick={() => setResetting(null)}>Cancelar</button><button className="btn pri" disabled={newPassword.length < 8} onClick={resetPassword}>Actualizar clave</button></>}>
+          <Field label="Nueva contraseña temporal"><input className="inp" type="text" minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)} /></Field>
+        </Modal>
+      )}
     </div>
   );
 }

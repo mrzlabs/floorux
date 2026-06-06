@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
+import { MayloDock } from '@/components/shell/MayloDock';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile, Comercio } from '@/types/db';
 
@@ -45,7 +46,7 @@ export function AdminShell({ profile, comercio, view, lowStockCount = 0, operati
   const item = nav.find(n => n.href.endsWith(view)) ?? nav[0];
 
   return (
-    <div className="app">
+    <div className="app" style={{ ['--accent' as any]: comercio.color }}>
       <Sidebar profile={profile} navItems={nav} shopName={comercio.name} shopSub={`${comercio.city} · Plan ${comercio.plan}`} shopColor={comercio.color} open={sideOpen} onClose={() => setSideOpen(false)} returnPath={returnPath} />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
@@ -61,6 +62,7 @@ export function AdminShell({ profile, comercio, view, lowStockCount = 0, operati
         </div>
       </main>
       <MayloDrawer open={help} onClose={() => setHelp(false)} roleLabel="Admin" intro="Soy Maylo. Te aviso apenas un producto se va a acabar y te recuerdo cuando un turno se cierra para que nada se te escape." alerts={[]} tips={TIPS[view] ?? []} dancing={dancing} onDance={() => { setDancing(true); fire('¡Eso! 🎺', 'spark'); setTimeout(() => setDancing(false), 4800); }} />
+      <MayloDock onOpen={() => setHelp(true)} message={lowStockCount > 0 ? `Hay ${lowStockCount} alertas de inventario.` : 'El local está listo para operar.'} alerts={lowStockCount} />
       {help && <div className="scrim" style={{ zIndex: 85 }} onClick={() => setHelp(false)} />}
       {toast && <div className="toast">{toast.msg}</div>}
     </div>

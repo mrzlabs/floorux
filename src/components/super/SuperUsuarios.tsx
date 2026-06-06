@@ -17,6 +17,8 @@ export function SuperUsuarios({ superAdminId }: SuperUsuariosProps) {
   const toast = useToast();
   const [users, setUsers] = useState<Profile[]>([]);
   const [adding, setAdding] = useState(false);
+  const [resetting, setResetting] = useState<Profile | null>(null);
+  const [newPassword, setNewPassword] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '', comercio_id: '' });
   const [comercios, setComercios] = useState<{ id: string; name: string }[]>([]);
   const supabase = createClient();
@@ -44,9 +46,31 @@ export function SuperUsuarios({ superAdminId }: SuperUsuariosProps) {
   }
 
   async function toggle(u: Profile) {
-    await supabase.from('profiles').update({ activo: !u.activo }).eq('id', u.id);
+    await action(u, u.activo ? 'suspend' : 'activate');
     toast(`${u.full_name} ${u.activo ? 'suspendido' : 'activado'}`, u.activo ? 'lock' : 'check');
     await load();
+  }
+
+  async function action(u: Profile, operation: string, password?: string) {
+    const response = await fetch('/api/admin/user-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: u.id, action: operation, password }),
+    });
+    if (!response.ok) {
+      toast('La operación no pudo completarse', 'alert');
+      return false;
+    }
+    return true;
+  }
+
+  async function resetPassword() {
+    if (!resetting || newPassword.length < 8) return;
+    if (await action(resetting, 'reset_password', newPassword)) {
+      toast('Contraseña temporal actualizada', 'check');
+      setResetting(null);
+      setNewPassword('');
+    }
   }
 
   return (
@@ -69,7 +93,10 @@ export function SuperUsuarios({ superAdminId }: SuperUsuariosProps) {
                 <td className="muted">{u.email}</td>
                 <td className="muted">{comercios.find(c => c.id === u.comercio_id)?.name ?? '—'}</td>
                 <td><Chip color={u.activo ? 'var(--green)' : 'var(--red)'}>{u.activo ? 'Activo' : 'Suspendido'}</Chip></td>
-                <td><button className={'sw' + (u.activo ? ' on' : '')} onClick={() => toggle(u)} /></td>
+                <td><div style={{ display: 'flex', gap: 6 }}>
+                  <button className={'sw' + (u.activo ? ' on' : '')} onClick={() => toggle(u)} />
+                  <button className="btn sm" onClick={() => setResetting(u)} title="Reiniciar contraseña"><Icon name="lock" s={13} /></button>
+                </div></td>
               </tr>
             ))}
           </tbody>
@@ -88,6 +115,12 @@ export function SuperUsuarios({ superAdminId }: SuperUsuariosProps) {
               {comercios.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>
+        </Modal>
+      )}
+      {resetting && (
+        <Modal title={`Reiniciar clave · ${resetting.full_name}`} icon="lock" onClose={() => setResetting(null)}
+          footer={<><button className="btn ghost" onClick={() => setResetting(null)}>Cancelar</button><button className="btn pri" disabled={newPassword.length < 8} onClick={resetPassword}>Actualizar clave</button></>}>
+          <Field label="Nueva contraseña temporal"><input className="inp" type="text" minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)} /></Field>
         </Modal>
       )}
     </div>

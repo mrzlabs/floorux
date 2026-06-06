@@ -11,6 +11,8 @@ export interface Profile {
   color: string;
   alias: string | null;
   avatar_url: string | null;
+  phone: string | null;
+  panel_theme: Record<string, string>;
   last_login: string | null;
   created_at: string;
   updated_at: string;
@@ -29,8 +31,15 @@ export interface Comercio {
   kind: 'Principal' | 'Franquicia';
   status: 'activo' | 'inactivo';
   color: string;
+  photo_url: string | null;
   tables_count: number;
   since: string;
+  plan_cost: number;
+  subscription_start: string;
+  subscription_end: string | null;
+  renewal_day: number | null;
+  subscription_status: 'active' | 'due' | 'suspended' | 'cancelled';
+  settings: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +48,7 @@ export interface Product {
   id: string;
   comercio_id: string;
   name: string;
+  reference: string | null;
   dist: string | null;
   cat: string;
   sub: string | null;
@@ -47,8 +57,35 @@ export interface Product {
   price: number;
   stock: number;
   min_stock: number;
+  initial_stock: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface SubscriptionHistory {
+  id: string;
+  comercio_id: string;
+  plan: string;
+  cost: number;
+  starts_at: string;
+  ends_at: string | null;
+  status: 'active' | 'renewed' | 'expired' | 'suspended' | 'cancelled';
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  comercio_id: string;
+  product_id: string;
+  actor_id: string | null;
+  delta: number;
+  previous_stock: number;
+  new_stock: number;
+  reason: string;
+  source: string;
+  created_at: string;
 }
 
 export interface Mesa {

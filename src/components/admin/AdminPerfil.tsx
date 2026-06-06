@@ -17,7 +17,7 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ full_name: profile.full_name, alias: profile.alias ?? '', color: profile.color });
-  const [bizForm, setBizForm] = useState({ name: comercio.name, address: comercio.address ?? '', phone: comercio.phone ?? '', nit: comercio.nit ?? '' });
+  const [bizForm, setBizForm] = useState({ name: comercio.name, address: comercio.address ?? '', phone: comercio.phone ?? '', nit: comercio.nit ?? '', color: comercio.color });
   const supabase = createClient();
 
   async function saveProfile() {
@@ -27,8 +27,18 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   }
 
   async function saveBiz() {
-    await supabase.from('comercios').update({ name: bizForm.name, address: bizForm.address || null, phone: bizForm.phone || null, nit: bizForm.nit || null }).eq('id', comercio.id);
+    await supabase.from('comercios').update({ name: bizForm.name, address: bizForm.address || null, phone: bizForm.phone || null, nit: bizForm.nit || null, color: bizForm.color }).eq('id', comercio.id);
     toast('Local actualizado', 'check');
+  }
+
+  async function uploadCommerce(file?: File) {
+    if (!file) return;
+    const path = `${profile.id}/commerce-${comercio.id}-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('floorux-media').upload(path, file);
+    if (error) { toast('No se pudo subir la imagen', 'alert'); return; }
+    const { data } = supabase.storage.from('floorux-media').getPublicUrl(path);
+    await supabase.from('comercios').update({ photo_url: data.publicUrl }).eq('id', comercio.id);
+    toast('Foto del comercio actualizada', 'check');
   }
 
   return (
@@ -67,10 +77,15 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
           <Field label="Dirección"><input className="inp" value={bizForm.address} onChange={e => setBizForm(f => ({ ...f, address: e.target.value }))} /></Field>
           <Field label="Teléfono"><input className="inp" value={bizForm.phone} onChange={e => setBizForm(f => ({ ...f, phone: e.target.value }))} /></Field>
           <Field label="NIT"><input className="inp" value={bizForm.nit} onChange={e => setBizForm(f => ({ ...f, nit: e.target.value }))} /></Field>
+          <Field label="Color del panel"><input className="inp" type="color" value={bizForm.color} onChange={e => setBizForm(f => ({ ...f, color: e.target.value }))} /></Field>
+          <Field label="Foto del comercio"><input className="inp" type="file" accept="image/*" onChange={e => uploadCommerce(e.target.files?.[0])} /></Field>
           <div className="grid g2" style={{ marginTop: 8 }}>
             <div className="stat"><div className="sk"><span className="si" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}><Icon name="tag" s={14} sw={2} /></span>Plan</div><div className="sv">{comercio.plan}</div></div>
             <div className="stat"><div className="sk"><span className="si" style={{ background: 'var(--accent2)22', color: 'var(--accent2)' }}><Icon name="mesas" s={14} sw={2} /></span>Mesas</div><div className="sv">{comercio.tables_count}</div></div>
           </div>
+          <div className="biz-row"><span>Inicio en FloorUX</span><b>{comercio.subscription_start ?? comercio.since}</b></div>
+          <div className="biz-row"><span>Fin suscripción</span><b>{comercio.subscription_end ?? 'Sin fin'}</b></div>
+          <div className="biz-row"><span>Renovación</span><b>Día {comercio.renewal_day ?? '—'}</b></div>
           <button className="btn pri" style={{ marginTop: 16, width: '100%' }} onClick={saveBiz}><Icon name="check" /> Guardar cambios</button>
         </div>
       </div>

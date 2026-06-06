@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Chip } from '@/components/ui/Chip';
-import { COP } from '@/lib/utils';
 
 interface ReconRow {
   comercio_id: string;
@@ -28,12 +27,20 @@ export function SRAuditoria() {
     const recon: any[] = [];
     for (const c of cs) {
       const { data: prods } = await supabase.from('products').select('id, name, stock, price').eq('comercio_id', c.id);
-      const { data: saleItems } = await supabase.from('sale_items').select('product_id, qty').in('product_id', (prods ?? []).map((p: any) => p.id));
+      const productIds = (prods ?? []).map((p: any) => p.id);
+      if (productIds.length === 0) continue;
+      const [{ data: saleItems }, { data: movements }] = await Promise.all([
+        supabase.from('sale_items').select('product_id, qty').in('product_id', productIds),
+        supabase.from('inventory_movements').select('product_id, delta').eq('comercio_id', c.id).lt('delta', 0),
+      ]);
       const vendMap: Record<string, number> = {};
+      const outMap: Record<string, number> = {};
       (saleItems ?? []).forEach((i: any) => { vendMap[i.product_id] = (vendMap[i.product_id] ?? 0) + i.qty; });
+      (movements ?? []).forEach((i: any) => { outMap[i.product_id] = (outMap[i.product_id] ?? 0) + Math.abs(i.delta); });
       for (const p of prods ?? []) {
         const v = vendMap[p.id] ?? 0;
-        recon.push({ comercio_id: c.id, comercio_name: c.name, product_id: p.id, product_name: p.name, stock_actual: p.stock, vendidas: v, diff: 0, valor: 0 });
+        const out = outMap[p.id] ?? 0;
+        recon.push({ comercio_id: c.id, comercio_name: c.name, product_id: p.id, product_name: p.name, stock_actual: p.stock, vendidas: v, descontadas: out, diff: out - v });
       }
     }
     setRows(recon);
@@ -57,11 +64,14 @@ export function SRAuditoria() {
       </div>
 
       <div className="card">
+        <div className="alert-banner" style={{ margin: 16 }}>
+          {discrepancias.length} productos con diferencia entre ventas cerradas y salidas registradas.
+        </div>
         {rows.length === 0 ? (
           <p className="muted" style={{ padding: 24, textAlign: 'center' }}>Cargando datos de auditoría…</p>
         ) : (
           <table className="tbl">
-            <thead><tr><th>Comercio</th><th>Producto</th><th style={{ textAlign: 'right' }}>Stock</th><th style={{ textAlign: 'right' }}>Vendidas</th><th>Cuadre</th></tr></thead>
+            <thead><tr><th>Comercio</th><th>Producto</th><th style={{ textAlign: 'right' }}>Stock</th><th style={{ textAlign: 'right' }}>Vendidas</th><th style={{ textAlign: 'right' }}>Salidas</th><th>Cuadre</th></tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
@@ -69,6 +79,7 @@ export function SRAuditoria() {
                   <td><b>{r.product_name}</b></td>
                   <td style={{ textAlign: 'right' }}>{r.stock_actual}</td>
                   <td style={{ textAlign: 'right' }}>{r.vendidas}</td>
+                  <td style={{ textAlign: 'right' }}>{r.descontadas}</td>
                   <td>
                     <Chip color={semaforo(r.diff)}>
                       {r.diff === 0 ? '✓ OK' : r.diff > 0 ? `+${r.diff} sobrante` : `${r.diff} faltante`}

@@ -6,6 +6,9 @@ import { Chip } from '@/components/ui/Chip';
 import { ReportToolbar } from '@/components/ui/ReportToolbar';
 import { useToast } from '@/components/ui/ToastContext';
 import { presetRange, exportCSV } from '@/lib/utils';
+import { Stat } from '@/components/ui/Stat';
+import { Bars } from '@/components/ui/Bars';
+import { Fragment } from 'react';
 import type { AuditLog } from '@/types/db';
 
 export function SRLogs() {
@@ -35,6 +38,16 @@ export function SRLogs() {
   const ACTION_COLORS: Record<string, string> = {
     CREATE: 'var(--green)', UPDATE: 'var(--accent2)', DELETE: 'var(--red)', LOGIN: 'var(--accent)', SUSPEND: 'var(--orange)',
   };
+  const actionCounts = logs.reduce<Record<string, number>>((acc, log) => {
+    acc[log.action] = (acc[log.action] ?? 0) + 1;
+    return acc;
+  }, {});
+  const tableCounts = logs.reduce<Record<string, number>>((acc, log) => {
+    const table = log.table_name ?? 'sistema';
+    acc[table] = (acc[table] ?? 0) + 1;
+    return acc;
+  }, {});
+  const bars = Object.entries(tableCounts).map(([d, v]) => ({ d, v })).sort((a, b) => b.v - a.v).slice(0, 8);
 
   return (
     <div>
@@ -42,12 +55,19 @@ export function SRLogs() {
         <div><h2 style={{ fontSize: 17 }}>Logs de auditoría</h2></div>
       </div>
       <ReportToolbar range={range} setRange={setRange} onCSV={doCSV} />
+      <div className="grid g4" style={{ marginTop: 16 }}>
+        <Stat label="Eventos" value={logs.length} icon="history" color="var(--accent)" />
+        <Stat label="Creaciones" value={actionCounts.CREATE ?? 0} icon="plus" color="var(--green)" />
+        <Stat label="Cambios" value={actionCounts.UPDATE ?? 0} icon="edit" color="var(--accent2)" />
+        <Stat label="Suspensiones y bajas" value={(actionCounts.SUSPEND ?? 0) + (actionCounts.DELETE ?? 0)} icon="lock" color="var(--red)" />
+      </div>
+      {bars.length > 0 && <div className="card chart" style={{ marginTop: 16 }}><div className="chart-h">Uso por módulo y tabla</div><Bars data={bars} hotIndex={0} /></div>}
       <div className="card" style={{ marginTop: 16 }}>
         <table className="tbl">
           <thead><tr><th>Fecha</th><th>Acción</th><th>Tabla</th><th>IP</th><th>Payload</th></tr></thead>
           <tbody>
             {logs.map(l => (
-              <>
+              <Fragment key={l.id}>
                 <tr key={l.id} style={{ cursor: l.payload ? 'pointer' : 'default' }} onClick={() => l.payload && setExpanded(expanded === l.id ? null : l.id)}>
                   <td className="muted" style={{ fontSize: 11 }}>{new Date(l.ts).toLocaleString('es-CO')}</td>
                   <td><Chip color={ACTION_COLORS[l.action] ?? 'var(--muted)'}>{l.action}</Chip></td>
@@ -64,7 +84,7 @@ export function SRLogs() {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>

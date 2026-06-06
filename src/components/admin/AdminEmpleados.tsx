@@ -18,6 +18,8 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
   const toast = useToast();
   const [empleados, setEmpleados] = useState<Profile[]>([]);
   const [adding, setAdding] = useState(false);
+  const [resetting, setResetting] = useState<Profile | null>(null);
+  const [newPassword, setNewPassword] = useState('');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const supabase = createClient();
 
@@ -45,9 +47,27 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
   }
 
   async function toggleActivo(emp: Profile) {
-    await supabase.from('profiles').update({ activo: !emp.activo }).eq('id', emp.id);
+    const response = await fetch('/api/admin/user-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: emp.id, action: emp.activo ? 'suspend' : 'activate' }),
+    });
+    if (!response.ok) { toast('No se pudo cambiar el estado', 'alert'); return; }
     toast(`${emp.full_name} ${emp.activo ? 'desactivado' : 'activado'}`, emp.activo ? 'lock' : 'check');
     await load();
+  }
+
+  async function resetPassword() {
+    if (!resetting || newPassword.length < 8) return;
+    const response = await fetch('/api/admin/user-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: resetting.id, action: 'reset_password', password: newPassword }),
+    });
+    if (!response.ok) { toast('No se pudo actualizar la clave', 'alert'); return; }
+    toast('Contraseña temporal actualizada', 'check');
+    setResetting(null);
+    setNewPassword('');
   }
 
   return (
@@ -67,13 +87,15 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
               <Avatar name={e.full_name} color={e.color} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700 }}>{e.full_name}</div>
-                <div className="muted" style={{ fontSize: 12 }}>{e.alias ?? e.email}</div>
+                <div className="muted" style={{ fontSize: 12 }}>{e.email}</div>
+                {e.phone && <div className="muted" style={{ fontSize: 12 }}>{e.phone}</div>}
               </div>
               <Chip color={e.activo ? 'var(--green)' : 'var(--red)'}>{e.activo ? 'Activo' : 'Inactivo'}</Chip>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className={'sw' + (e.activo ? ' on' : '')} onClick={() => toggleActivo(e)} />
               <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>{e.activo ? 'Desactivar' : 'Activar'}</span>
+              <button className="btn sm" onClick={() => setResetting(e)}><Icon name="lock" s={13} /> Reiniciar clave</button>
             </div>
           </div>
         ))}
@@ -85,6 +107,12 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
           <Field label="Nombre completo"><input className="inp" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></Field>
           <Field label="Email"><input className="inp" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field>
           <Field label="Contraseña temporal"><input className="inp" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} /></Field>
+        </Modal>
+      )}
+      {resetting && (
+        <Modal title={`Reiniciar clave · ${resetting.full_name}`} icon="lock" onClose={() => setResetting(null)}
+          footer={<><button className="btn ghost" onClick={() => setResetting(null)}>Cancelar</button><button className="btn pri" disabled={newPassword.length < 8} onClick={resetPassword}>Actualizar clave</button></>}>
+          <Field label="Nueva contraseña temporal"><input className="inp" type="text" minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)} /></Field>
         </Modal>
       )}
     </div>
