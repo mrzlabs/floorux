@@ -13,6 +13,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [notice, setNotice] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [mayloReady, setMayloReady] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,7 +117,26 @@ function LoginForm() {
           </div>
           <button className="login-forgot" type="button" onClick={forgotPassword}>Olvidé mi contraseña</button>
 
-          <button className="btn pri block" type="submit" disabled={loading} style={{ marginTop: 20, height: 48 }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 18, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={e => setTermsAccepted(e.target.checked)}
+              style={{ marginTop: 2, accentColor: 'var(--accent)', width: 16, height: 16, flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>
+              Acepto los{' '}
+              <a href="/terminos" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                Términos y Condiciones
+              </a>{' '}
+              y la{' '}
+              <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                Política de Privacidad
+              </a>
+            </span>
+          </label>
+
+          <button className="btn pri block" type="submit" disabled={loading || !termsAccepted} style={{ marginTop: 16, height: 48 }}>
             {loading ? 'Ingresando…' : <><Icon name="lock" s={16} /> Ingresar</>}
           </button>
         </form>

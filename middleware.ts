@@ -4,7 +4,7 @@ import type { Role } from '@/types/roles';
 import { ROLE_ROUTES } from '@/types/roles';
 import { OPERATE_COOKIE, verifyOperateToken } from '@/lib/operate-token';
 
-const PUBLIC_PATHS = ['/login'];
+const PUBLIC_PATHS = ['/login', '/suspendido', '/terminos', '/privacidad', '/reset-password'];
 
 function redirectWithError(request: NextRequest, error: string) {
   const url = new URL('/login', request.url);
@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, activo, super_admin_id')
+    .select('role, activo, super_admin_id, comercio_id')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -79,6 +79,19 @@ export async function middleware(request: NextRequest) {
   }
 
   const role = profile.role as Role;
+
+  // subscription check — super_super_admin siempre pasa
+  if (role !== 'super_super_admin' && profile.comercio_id) {
+    const { data: comercio } = await supabase
+      .from('comercios')
+      .select('subscription_status')
+      .eq('id', profile.comercio_id)
+      .maybeSingle();
+    if (comercio && ['suspended', 'cancelled'].includes(comercio.subscription_status)) {
+      return NextResponse.redirect(new URL('/suspendido', request.url));
+    }
+  }
+
   const base = ROLE_ROUTES[role];
   if (!base) {
     return redirectWithError(request, 'rol_no_valido');
