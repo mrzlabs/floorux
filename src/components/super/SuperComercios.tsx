@@ -8,7 +8,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Modal } from '@/components/ui/Modal';
 import { Field } from '@/components/ui/Field';
 import { useToast } from '@/components/ui/ToastContext';
-import { COP } from '@/lib/utils';
+import { COP, COPk } from '@/lib/utils';
 import type { Comercio, Profile } from '@/types/db';
 
 interface SuperComerciosProps {
@@ -254,11 +254,23 @@ export function SuperComercios({ superAdminId }: SuperComerciosProps) {
               </div>
               <span className={'kind-pill ' + (c.kind === 'Principal' ? 'princ' : 'fran')}>{c.kind}</span>
             </div>
-            <div className="biz-row"><span>Plan</span><b>{c.plan}</b></div>
-            <div className="biz-row"><span>Costo</span><b>{COP(c.plan_cost ?? 0)}</b></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, margin: '8px 0 10px' }}>
+              {([
+                { label: 'Plan', value: c.plan, icon: 'tag' },
+                { label: 'Mensual', value: COPk(c.plan_cost ?? 0), icon: 'cash' },
+                { label: 'Mesas', value: String(c.tables_count), icon: 'mesas' },
+              ] as const).map(s => (
+                <div key={s.label} style={{ padding: '8px 6px', borderRadius: 8, border: `1px solid ${c.color}40`, background: c.color + '10' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 3, color: c.color }}>
+                    <Icon name={s.icon} s={11} />
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)' }}>{s.label}</span>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 800 }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
             <div className="biz-row"><span>Suscripción</span><b>{c.subscription_start} → {c.subscription_end ?? 'Sin fin'}</b></div>
             <div className="biz-row"><span>Renovación</span><b>Día {c.renewal_day ?? '—'}</b></div>
-            <div className="biz-row"><span>Mesas</span><b>{c.tables_count}</b></div>
             <div className="biz-row">
               <span>Administrador</span>
               <b>{admins.find(admin => admin.comercio_id === c.id)?.full_name ?? 'Sin asignar'}</b>
