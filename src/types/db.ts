@@ -27,7 +27,7 @@ export interface Comercio {
   address: string | null;
   phone: string | null;
   nit: string | null;
-  plan: 'Básico' | 'Pro';
+  plan: 'Básico' | 'Pro' | 'Red' | 'Enterprise';
   kind: 'Principal' | 'Franquicia';
   status: 'activo' | 'inactivo';
   color: string;
@@ -35,10 +35,11 @@ export interface Comercio {
   tables_count: number;
   since: string;
   plan_cost: number;
+  billing_cycle: 'mensual' | 'anual';
   subscription_start: string;
   subscription_end: string | null;
   renewal_day: number | null;
-  subscription_status: 'active' | 'due' | 'suspended' | 'cancelled';
+  subscription_status: 'active' | 'trial' | 'due' | 'suspended' | 'cancelled';
   settings: Record<string, unknown>;
   created_at: string;
   updated_at: string;

@@ -10,11 +10,10 @@ const schema = z.object({
   type: z.enum(['Discoteca', 'Taberna', 'Bar']),
   city: z.string().min(2),
   kind: z.enum(['Principal', 'Franquicia']),
-  plan: z.enum(['Básico', 'Pro']),
+  plan: z.enum(['Básico', 'Pro', 'Red', 'Enterprise']),
   tables_count: z.coerce.number().int().min(1).max(500),
   plan_cost: z.coerce.number().min(0),
-  subscription_start: z.string().date(),
-  subscription_end: z.string().date().nullable().optional(),
+  billing_cycle: z.enum(['mensual', 'anual']).default('mensual'),
   renewal_day: z.coerce.number().int().min(1).max(28).nullable().optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#7F77DD'),
 });
@@ -39,11 +38,17 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+  const now = new Date();
+  const trialEnd = new Date(now);
+  trialEnd.setDate(trialEnd.getDate() + 30);
   const payload = {
     ...parsed.data,
     super_admin_id: user.id,
     status: 'activo',
-    subscription_status: 'active',
+    subscription_status: 'trial',
+    subscription_start: now.toISOString().slice(0, 10),
+    subscription_end: trialEnd.toISOString().slice(0, 10),
+    settings: {},
   };
   const { data: comercio, error } = await admin
     .from('comercios')

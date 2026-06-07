@@ -29,13 +29,31 @@ export function SuperComercios({ superAdminId }: SuperComerciosProps) {
   const [customPhoto, setCustomPhoto] = useState('');
   const [customFile, setCustomFile] = useState<File | null>(null);
   const [loadError, setLoadError] = useState('');
-  const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
-    name: '', type: 'Discoteca', city: '', kind: 'Franquicia', plan: 'Pro',
-    tables_count: '10', plan_cost: '0', subscription_start: today,
-    subscription_end: '', renewal_day: '1', color: '#7F77DD',
+    name: '', type: 'Discoteca', city: '', kind: 'Franquicia',
+    tables_count: '10', renewal_day: '1', color: '#7F77DD',
   });
+  const [planId, setPlanId] = useState('pro');
+  const [billingCycle, setBillingCycle] = useState<'mensual' | 'anual'>('mensual');
+  const [discountPct, setDiscountPct] = useState(0);
+  const [discountType, setDiscountType] = useState<'general' | 'months'>('general');
+  const [discountMonths, setDiscountMonths] = useState(1);
   const supabase = createClient();
+
+  const PLANES = [
+    { id: 'basico',     name: 'Básico',     precio: 89000,  comercios: 1,  empleados: 3  },
+    { id: 'pro',        name: 'Pro',        precio: 149000, comercios: 1,  empleados: -1 },
+    { id: 'red',        name: 'Red',        precio: 249000, comercios: 5,  empleados: -1 },
+    { id: 'enterprise', name: 'Enterprise', precio: 0,      comercios: -1, empleados: -1 },
+  ];
+
+  const selPlan = PLANES.find(p => p.id === planId)!;
+  const basePrecio = selPlan.precio;
+  const afterBilling = billingCycle === 'anual' ? Math.round(basePrecio * 0.83) : basePrecio;
+  const finalMensual = discountPct > 0 ? Math.round(afterBilling * (1 - discountPct / 100)) : afterBilling;
+  const periodTotal = billingCycle === 'anual'
+    ? finalMensual * 12
+    : discountType === 'months' ? finalMensual * discountMonths : finalMensual;
 
   useEffect(() => { load(); }, [superAdminId]);
 
@@ -64,7 +82,9 @@ export function SuperComercios({ superAdminId }: SuperComerciosProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
-        subscription_end: form.subscription_end || null,
+        plan: selPlan.name,
+        billing_cycle: billingCycle,
+        plan_cost: finalMensual,
       }),
     });
     const result = await response.json();
@@ -215,7 +235,11 @@ export function SuperComercios({ superAdminId }: SuperComerciosProps) {
           <h2 style={{ fontSize: 17, fontWeight: 800 }}>Comercios enlazados</h2>
           <p className="muted" style={{ fontSize: 13 }}>Tu local principal y sus franquicias</p>
         </div>
-        <button className="btn pri" onClick={() => setAdding(true)}><Icon name="plus" /> Crear comercio</button>
+        <button className="btn pri" onClick={() => {
+          setForm({ name: '', type: 'Discoteca', city: '', kind: 'Franquicia', tables_count: '10', renewal_day: '1', color: '#7F77DD' });
+          setPlanId('pro'); setBillingCycle('mensual'); setDiscountPct(0); setDiscountType('general'); setDiscountMonths(1);
+          setAdding(true);
+        }}><Icon name="plus" /> Crear comercio</button>
       </div>
       {loadError && <div className="alert-banner">No se pudieron cargar los comercios: {loadError}</div>}
 
@@ -276,17 +300,90 @@ export function SuperComercios({ superAdminId }: SuperComerciosProps) {
             <Field label="Ciudad"><input className="inp" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></Field>
             <Field label="Vínculo"><select className="sel" value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}><option>Franquicia</option><option>Principal</option></select></Field>
           </div>
+
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginBottom: 6 }}>PLAN</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+            {PLANES.map(p => (
+              <button key={p.id} type="button" onClick={() => setPlanId(p.id)} style={{
+                padding: '10px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: 10,
+                border: `2px solid ${planId === p.id ? 'var(--accent)' : 'var(--border)'}`,
+                background: planId === p.id ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.name}</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--accent)', marginTop: 2 }}>
+                  {p.precio > 0 ? COP(p.precio) : 'A convenir'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                  {p.comercios === -1 ? '∞' : p.comercios} comercio{p.comercios !== 1 ? 's' : ''} · {p.empleados === -1 ? '∞' : p.empleados} emp.
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginBottom: 6 }}>MODALIDAD</p>
+          <div className="tabs" style={{ marginBottom: 14 }}>
+            <button type="button" className={billingCycle === 'mensual' ? 'on' : ''} onClick={() => setBillingCycle('mensual')}>Mensual</button>
+            <button type="button" className={billingCycle === 'anual' ? 'on' : ''} onClick={() => setBillingCycle('anual')}>
+              Anual <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 700, marginLeft: 4 }}>−17%</span>
+            </button>
+          </div>
+
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', marginBottom: 6 }}>DESCUENTO</p>
+          <div className="tabs" style={{ marginBottom: 8 }}>
+            <button type="button" className={discountType === 'general' ? 'on' : ''} onClick={() => setDiscountType('general')}>General</button>
+            <button type="button" className={discountType === 'months' ? 'on' : ''} onClick={() => setDiscountType('months')}>Por meses</button>
+          </div>
+          {discountType === 'general' ? (
+            <Field label="Descuento (%)">
+              <input className="inp" type="number" min="0" max="100" value={discountPct || ''} onChange={e => setDiscountPct(Number(e.target.value))} />
+            </Field>
+          ) : (
+            <div className="row2">
+              <Field label="Meses">
+                <select className="sel" value={discountMonths} onChange={e => setDiscountMonths(Number(e.target.value))}>
+                  {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+                </select>
+              </Field>
+              <Field label="Descuento (%)">
+                <input className="inp" type="number" min="0" max="100" value={discountPct || ''} onChange={e => setDiscountPct(Number(e.target.value))} />
+              </Field>
+            </div>
+          )}
+
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', margin: '12px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>Precio base</span>
+              <span style={{ fontSize: 13 }}>{COP(basePrecio)}</span>
+            </div>
+            {billingCycle === 'anual' && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>Desc. anual (17%)</span>
+                <span style={{ fontSize: 13, color: 'var(--green)' }}>−{COP(basePrecio - afterBilling)}</span>
+              </div>
+            )}
+            {discountPct > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>Desc. adicional ({discountPct}%)</span>
+                <span style={{ fontSize: 13, color: 'var(--green)' }}>−{COP(afterBilling - finalMensual)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 }}>
+              <b style={{ fontSize: 14 }}>Precio mensual</b>
+              <b style={{ fontSize: 15, color: 'var(--accent)' }}>{COP(finalMensual)}</b>
+            </div>
+            {(billingCycle === 'anual' || (discountType === 'months' && discountMonths > 1)) && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  {billingCycle === 'anual' ? 'Total 12 meses' : `Total ${discountMonths} meses`}
+                </span>
+                <b style={{ fontSize: 13 }}>{COP(periodTotal)}</b>
+              </div>
+            )}
+          </div>
+
           <div className="row2">
-            <Field label="Plan"><select className="sel" value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))}><option>Pro</option><option>Básico</option></select></Field>
             <Field label="Nro. mesas"><input className="inp" type="number" value={form.tables_count} onChange={e => setForm(f => ({ ...f, tables_count: e.target.value }))} /></Field>
-          </div>
-          <div className="row2">
-            <Field label="Costo del plan"><input className="inp" type="number" min="0" value={form.plan_cost} onChange={e => setForm(f => ({ ...f, plan_cost: e.target.value }))} /></Field>
             <Field label="Día de renovación"><input className="inp" type="number" min="1" max="28" value={form.renewal_day} onChange={e => setForm(f => ({ ...f, renewal_day: e.target.value }))} /></Field>
-          </div>
-          <div className="row2">
-            <Field label="Inicio suscripción"><input className="inp" type="date" value={form.subscription_start} onChange={e => setForm(f => ({ ...f, subscription_start: e.target.value }))} /></Field>
-            <Field label="Fin suscripción"><input className="inp" type="date" min={form.subscription_start} value={form.subscription_end} onChange={e => setForm(f => ({ ...f, subscription_end: e.target.value }))} /></Field>
           </div>
           <Field label="Color del comercio"><input className="inp" type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} /></Field>
         </Modal>
