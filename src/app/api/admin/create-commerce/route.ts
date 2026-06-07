@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
     .select('role')
     .eq('id', user.id)
     .maybeSingle();
-  if (!actor || !['super_super_admin', 'super_admin'].includes(actor.role)) {
+  if (!actor) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (actor.role === 'admin') {
+    return NextResponse.json({ error: 'Los administradores no pueden crear comercios. Solo el Super Admin puede hacerlo.' }, { status: 403 });
+  }
+  if (!['super_super_admin', 'super_admin'].includes(actor.role)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
