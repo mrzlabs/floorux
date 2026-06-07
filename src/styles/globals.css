@@ -544,3 +544,13 @@ html.compact .biz{padding:13px;gap:9px}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-scheme:light!important}
   .bar,.pbar-fill,.bseg,.donut{filter:none!important}
 }
+
+/* Live dot animation */
+.live-dot{
+  animation: pulse-live 2s infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
