@@ -230,6 +230,13 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       return;
     }
 
+    // Actualizar estado local de products INMEDIATAMENTE
+    setProducts(prev => prev.map(p =>
+      p.id === product.id
+        ? { ...p, stock: p.stock - 1 }
+        : p
+    ));
+
     const existing = selectedMesa.items.find(i => i.product_id === product.id);
     if (existing) {
       const newQty = existing.qty + 1;
@@ -274,6 +281,13 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       .update({ stock: product.stock - 1 })
       .eq('id', item.product_id)
       .gt('stock', 0);
+
+    // Actualizar estado local de products INMEDIATAMENTE
+    setProducts(prev => prev.map(p =>
+      p.id === item.product_id
+        ? { ...p, stock: p.stock - 1 }
+        : p
+    ));
 
     await supabase
       .from('mesa_items')
