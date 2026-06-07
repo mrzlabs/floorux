@@ -486,7 +486,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
     }));
 
     // 3. Persistir cada producto en BD
-    for (const [productId, qty] of stockChanges) {
+    for (const [productId, qty] of Array.from(stockChanges.entries())) {
       const product = products.find(p => p.id === productId);
       if (product) {
         await supabase
@@ -1629,20 +1629,22 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             </div>
 
             {reduceMotivo === 'Otro' && (
-              <Field label="Especifica el motivo" style={{ marginTop: 12 }}>
-                <textarea
-                  className="inp"
-                  placeholder="Escribe el motivo..."
-                  value={reduceMotivoCustom}
-                  onChange={(e) => setReduceMotivoCustom(e.target.value)}
-                  style={{
-                    width: '100%',
-                    minHeight: 80,
-                    resize: 'vertical',
-                  }}
-                  autoFocus
-                />
-              </Field>
+              <div style={{ marginTop: 12 }}>
+                <Field label="Especifica el motivo">
+                  <textarea
+                    className="inp"
+                    placeholder="Escribe el motivo..."
+                    value={reduceMotivoCustom}
+                    onChange={(e) => setReduceMotivoCustom(e.target.value)}
+                    style={{
+                      width: '100%',
+                      minHeight: 80,
+                      resize: 'vertical',
+                    }}
+                    autoFocus
+                  />
+                </Field>
+              </div>
             )}
           </div>
 
@@ -1737,20 +1739,22 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             </div>
 
             {removeMotivo === 'Otro' && (
-              <Field label="Especifica el motivo" style={{ marginTop: 12 }}>
-                <textarea
-                  className="inp"
-                  placeholder="Escribe el motivo..."
-                  value={removeMotivoCustom}
-                  onChange={(e) => setRemoveMotivoCustom(e.target.value)}
-                  style={{
-                    width: '100%',
-                    minHeight: 80,
-                    resize: 'vertical',
-                  }}
-                  autoFocus
-                />
-              </Field>
+              <div style={{ marginTop: 12 }}>
+                <Field label="Especifica el motivo">
+                  <textarea
+                    className="inp"
+                    placeholder="Escribe el motivo..."
+                    value={removeMotivoCustom}
+                    onChange={(e) => setRemoveMotivoCustom(e.target.value)}
+                    style={{
+                      width: '100%',
+                      minHeight: 80,
+                      resize: 'vertical',
+                    }}
+                    autoFocus
+                  />
+                </Field>
+              </div>
             )}
           </div>
 
@@ -1842,20 +1846,22 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             </div>
 
             {cancelarMotivo === 'Otro' && (
-              <Field label="Especifica el motivo" style={{ marginTop: 12 }}>
-                <textarea
-                  className="inp"
-                  placeholder="Escribe el motivo..."
-                  value={cancelarMotivoCustom}
-                  onChange={(e) => setCancelarMotivoCustom(e.target.value)}
-                  style={{
-                    width: '100%',
-                    minHeight: 80,
-                    resize: 'vertical',
-                  }}
-                  autoFocus
-                />
-              </Field>
+              <div style={{ marginTop: 12 }}>
+                <Field label="Especifica el motivo">
+                  <textarea
+                    className="inp"
+                    placeholder="Escribe el motivo..."
+                    value={cancelarMotivoCustom}
+                    onChange={(e) => setCancelarMotivoCustom(e.target.value)}
+                    style={{
+                      width: '100%',
+                      minHeight: 80,
+                      resize: 'vertical',
+                    }}
+                    autoFocus
+                  />
+                </Field>
+              </div>
             )}
           </div>
 
