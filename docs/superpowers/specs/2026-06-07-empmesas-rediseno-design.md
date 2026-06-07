@@ -109,20 +109,24 @@ async function removeItem(item: CartItem, motivo: string) {
       : p
   ));
 
-  // 2. Persistir en BD
+  // 2. Obtener producto actual para calcular nuevo stock
+  const product = products.find(p => p.id === item.product_id);
+  if (!product) return;
+
+  // 3. Persistir en BD
   await supabase
     .from('products')
     .update({ stock: product.stock + item.qty })
     .eq('id', item.product_id);
 
-  // 3. Eliminar de mesa_items
+  // 4. Eliminar de mesa_items
   await supabase
     .from('mesa_items')
     .delete()
     .eq('mesa_id', selectedMesa.id)
     .eq('product_id', item.product_id);
 
-  // 4. Audit log
+  // 5. Audit log
   await supabase.from('mesa_audit_log').insert({
     mesa_id: selectedMesa.id,
     action: 'remove_item',
