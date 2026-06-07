@@ -1910,85 +1910,143 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       {/* Modal de cobro */}
       {selectedMesa && showingCobro && (
         <Modal title="" onClose={() => setShowingCobro(false)} wide>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>
-              {selectedMesa.name} · {selectedMesa.alias}
-            </div>
-          </div>
-
-          {/* Total a cobrar */}
-          <div className="card" style={{ padding: 20, textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
-              Total a cobrar
-            </div>
-            <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--accent)', marginBottom: 10 }}>
-              {COP(selectedMesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              {selectedMesa.items.reduce((s, i) => s + i.qty, 0)} productos · {selectedMesa.name} · {selectedMesa.alias}
-            </div>
-          </div>
-
-          {/* ¿Cómo pagó? */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 10 }}>¿Cómo pagó?</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {PAYMENTS.map(p => (
-                <button
-                  key={p.id}
-                  className="btn"
-                  style={{
-                    flex: '1 1 calc(50% - 4px)',
-                    minWidth: 140,
-                    padding: '14px 16px',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    background: payment === p.id ? p.color : 'var(--panel2)',
-                    borderColor: payment === p.id ? p.color : 'var(--line)',
-                    color: payment === p.id ? '#fff' : 'var(--ink)',
-                    border: payment === p.id ? '2px solid' : '1px solid',
-                  }}
-                  onClick={() => setPayment(p.id)}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Evidencia (opcional) */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 10 }}>Evidencia (opcional)</div>
-            <input
-              className="inp"
-              type="file"
-              accept="image/*"
-              onChange={e => {
-                const file = e.target.files?.[0];
-                if (file) setEvidenceFile(file);
-              }}
-              style={{ width: '100%' }}
-            />
-            {evidenceFile && (
-              <div style={{ fontSize: 12, color: 'var(--green)', marginTop: 6 }}>
-                ✓ {evidenceFile.name}
+          <div style={{ maxWidth: 480, margin: '0 auto' }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>
+                {selectedMesa.name} · {selectedMesa.alias}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Footer */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn" onClick={() => setShowingCobro(false)} style={{ flex: 1 }}>
-              &gt; Volver
-            </button>
-            <button
-              className="btn primary"
-              onClick={cobrarMesa}
-              disabled={!payment}
-              style={{ flex: 1, background: 'var(--accent)', borderColor: 'var(--accent)' }}
-            >
-              ✓ Confirmar cobro y liberar mesa
-            </button>
+            {/* Card de total */}
+            <div style={{
+              background: 'var(--bg2)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)',
+              padding: 24,
+              textAlign: 'center',
+              marginBottom: 20,
+            }}>
+              <div style={{
+                fontSize: 12,
+                textTransform: 'uppercase',
+                letterSpacing: '.06em',
+                color: 'var(--muted)',
+                marginBottom: 8,
+              }}>
+                Total a cobrar
+              </div>
+              <div style={{
+                fontSize: 36,
+                fontWeight: 900,
+                color: 'var(--accent)',
+                marginBottom: 10,
+              }}>
+                {COP(selectedMesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+                {selectedMesa.items.reduce((s, i) => s + i.qty, 0)} productos · {selectedMesa.name} · {selectedMesa.alias}
+              </div>
+            </div>
+
+            {/* ¿Cómo pagó? */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{
+                fontSize: 13,
+                fontWeight: 700,
+                marginBottom: 10,
+              }}>
+                ¿Cómo pagó?
+              </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 8,
+              }}>
+                {PAYMENTS.map(p => (
+                  <button
+                    key={p.id}
+                    className="btn"
+                    style={{
+                      height: 52,
+                      borderRadius: 'var(--r-md)',
+                      fontSize: 14,
+                      fontWeight: payment === p.id ? 800 : 700,
+                      background: payment === p.id
+                        ? `color-mix(in srgb, ${p.color} 12%, var(--panel))`
+                        : 'var(--panel2)',
+                      borderColor: payment === p.id ? p.color : 'var(--line)',
+                      borderWidth: payment === p.id ? '2px' : '1.5px',
+                      color: payment === p.id ? p.color : 'var(--ink)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                    onClick={() => setPayment(p.id)}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Evidencia (opcional) */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{
+                fontSize: 13,
+                fontWeight: 700,
+                marginBottom: 10,
+              }}>
+                Evidencia (opcional)
+              </div>
+              <input
+                className="inp"
+                type="file"
+                accept="image/*"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) setEvidenceFile(file);
+                }}
+                style={{ width: '100%' }}
+              />
+              {evidenceFile && (
+                <div style={{
+                  fontSize: 12,
+                  color: 'var(--green)',
+                  marginTop: 6,
+                }}>
+                  ✓ {evidenceFile.name}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn"
+                onClick={() => setShowingCobro(false)}
+                style={{ flex: 1 }}
+              >
+                &gt; Volver
+              </button>
+              <button
+                className="btn primary"
+                onClick={cobrarMesa}
+                disabled={!payment}
+                style={{
+                  flex: 1,
+                  background: 'var(--accent)',
+                  borderColor: 'var(--accent)',
+                  fontWeight: 800,
+                }}
+              >
+                ✓ Confirmar cobro y liberar mesa
+              </button>
+            </div>
           </div>
         </Modal>
       )}
