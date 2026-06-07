@@ -17,11 +17,11 @@ export function useTheme(mode: string, palette?: string[]) {
   }, [mode, palette?.join(',')]);
 }
 
-export function applyFullTheme(pt: Record<string, unknown>, fallback = '#B57BE0') {
+export function applyFullTheme(pt: Record<string, unknown>, fallbackAccent = '#7F77DD') {
   const mode = pt.mode === 'light' ? 'light' : 'dark';
   const palette = Array.isArray(pt.palette) && (pt.palette as unknown[]).length === 3
     ? pt.palette as string[]
-    : [fallback, '#27C3D8', '#B57BE0'];
+    : [fallbackAccent, '#27C3D8', '#B57BE0'];
   applyTheme(mode, palette);
 
   const root = document.documentElement;

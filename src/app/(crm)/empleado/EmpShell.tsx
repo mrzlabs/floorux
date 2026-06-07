@@ -4,13 +4,12 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { getVisualConfig } from '@/components/shell/VisualTheme';
-import { useTheme } from '@/hooks/useTheme';
+import { applyFullTheme } from '@/hooks/useTheme';
 import { createClient } from '@/lib/supabase/client';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import type { Profile, Comercio } from '@/types/db';
 
-const DEFAULT_PALETTE = ['#7F77DD', '#27C3D8', '#B57BE0'];
+const DEFAULT_PALETTE = { accent: '#7F77DD', accent2: '#27C3D8', accent3: '#B57BE0' };
 
 function createNav(comercioName: string, unreadCount?: number) {
   return [
@@ -37,30 +36,41 @@ interface EmpShellProps {
 }
 
 export function EmpShell({ profile, view, children }: EmpShellProps) {
-  const [themeMode, setThemeMode] = useState('dark');
-  const [themePalette, setThemePalette] = useState(DEFAULT_PALETTE);
   const [comercio, setComercio] = useState<Partial<Comercio>>({ name: '', color: '#7F77DD' });
   const [brandLightbox, setBrandLightbox] = useState(false);
   const [avatarLightbox, setAvatarLightbox] = useState(false);
   const [unreadTickets, setUnreadTickets] = useState(0);
-  useTheme(themeMode, themePalette);
 
   useEffect(() => {
     const id = profile.comercio_id;
     if (!id) return;
     const supabase = createClient();
 
-    supabase.from('comercios').select('name, photo_url, color, settings').eq('id', id).maybeSingle()
+    // Cargar datos del comercio
+    supabase.from('comercios').select('name, photo_url, color').eq('id', id).maybeSingle()
       .then(({ data }) => {
         if (data) {
           setComercio(data as Comercio);
-          if (data.settings) {
-            const cfg = getVisualConfig(data.settings as Record<string, unknown>, data.color ?? undefined);
-            setThemeMode(cfg.mode);
-            setThemePalette(cfg.palette);
-          }
         }
       });
+
+    // Cargar tema del admin del comercio
+    async function loadAdminTheme() {
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('panel_theme')
+        .eq('role', 'admin')
+        .eq('comercio_id', id)
+        .maybeSingle();
+
+      if (adminProfile?.panel_theme) {
+        applyFullTheme(adminProfile.panel_theme as Record<string, unknown>, DEFAULT_PALETTE.accent);
+      } else {
+        // Fallback al tema por defecto
+        applyFullTheme({ mode: 'dark', palette: [DEFAULT_PALETTE.accent, DEFAULT_PALETTE.accent2, DEFAULT_PALETTE.accent3] }, DEFAULT_PALETTE.accent);
+      }
+    }
+    loadAdminTheme();
 
     // Cargar tickets sin leer
     async function loadUnreadTickets() {
@@ -76,18 +86,33 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
 
     const channel = supabase
       .channel(`emp-theme-${id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comercios', filter: `id=eq.${id}` },
-        (payload) => {
-          const row = payload.new as { settings?: Record<string, unknown>; color?: string; name?: string; photo_url?: string };
-          setComercio(prev => ({ ...prev, ...row }));
-          if (row.settings) {
-            const cfg = getVisualConfig(row.settings, row.color ?? undefined);
-            setThemeMode(cfg.mode);
-            setThemePalette(cfg.palette);
-          }
-        })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${profile.id}` },
-        () => loadUnreadTickets())
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `comercio_id=eq.${id}`
+      }, (payload) => {
+        const row = payload.new as { panel_theme?: Record<string, unknown>; role?: string };
+        // Solo aplicar si es el admin del comercio quien cambió su tema
+        if (row.role === 'admin' && row.panel_theme) {
+          applyFullTheme(row.panel_theme, DEFAULT_PALETTE.accent);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'comercios',
+        filter: `id=eq.${id}`
+      }, (payload) => {
+        const row = payload.new as { name?: string; photo_url?: string; color?: string };
+        setComercio(prev => ({ ...prev, ...row }));
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages',
+        filter: `recipient_id=eq.${profile.id}`
+      }, () => loadUnreadTickets())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
