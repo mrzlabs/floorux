@@ -704,38 +704,54 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
 
   return (
     <div>
-      {/* Header venta de la noche */}
-      <div style={{ marginBottom: 20 }}>
-        <div
-          style={{
-            background: 'var(--panel2)',
-            borderRadius: 12,
-            padding: '16px 20px',
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
-                VENTA DE LA NOCHE
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--accent)' }}>
-                {COP(totalAcumulado)}
-              </div>
+      {/* Header venta de la noche - 3 zonas */}
+      <div style={{
+        background: 'var(--panel)',
+        borderBottom: '1px solid var(--line)',
+        padding: '16px 20px',
+        marginBottom: 20,
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 12,
+        }} className="header-strip">
+          {/* Zona Izquierda */}
+          <div>
+            <div style={{
+              fontSize: 11,
+              color: 'var(--muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '.06em',
+              marginBottom: 4,
+            }}>
+              VENTA DE LA NOCHE
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Chip color="var(--green)">
-                <span className="live-dot">●</span> EN VIVO
-              </Chip>
-              <span style={{ fontSize: 18, fontWeight: 700, fontFeatureSettings: '"tnum"' }}>
-                {elapsedTime}
-              </span>
+            <div style={{
+              fontSize: 28,
+              fontWeight: 900,
+              color: 'var(--accent)',
+              marginBottom: 4,
+            }}>
+              {COP(totalAcumulado)}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {mesasAbiertas.length} abiertas · {mesasLibres.length} libres
             </div>
           </div>
 
-          {/* Barra de progreso */}
-          <div style={{ height: 8, background: 'var(--panel)', borderRadius: 4, overflow: 'hidden', marginBottom: 10 }}>
-            {mesasAbiertas.map((mesa, idx) => {
+          {/* Zona Centro - Barra de barras proporcional */}
+          <div style={{
+            display: 'flex',
+            gap: 3,
+            maxWidth: 400,
+            height: 32,
+            borderRadius: 4,
+            overflow: 'hidden',
+            background: 'var(--panel)',
+          }}>
+            {mesasAbiertas.map((mesa) => {
               const mesaTotal = mesa.items.reduce((s, i) => s + i.price * i.qty, 0);
               const percentage = totalAcumulado > 0 ? (mesaTotal / totalAcumulado) * 100 : 0;
               return (
@@ -745,15 +761,43 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                     display: 'inline-block',
                     height: '100%',
                     width: `${percentage}%`,
-                    background: `linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%)`,
+                    background: 'linear-gradient(90deg, var(--accent), var(--accent2))',
                   }}
+                  title={`${mesa.name}: ${COP(mesaTotal)}`}
                 />
               );
             })}
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-            {mesasAbiertas.length} abiertas · {mesasLibres.length} libres
+          {/* Zona Derecha */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {shift && (
+              <div style={{
+                background: 'color-mix(in srgb, var(--green) 20%, transparent)',
+                color: 'var(--green)',
+                padding: '6px 12px',
+                borderRadius: 99,
+                fontSize: 11,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}>
+                <span className="live-dot">●</span> EN VIVO
+              </div>
+            )}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{
+                fontSize: 18,
+                fontWeight: 700,
+                fontFeatureSettings: '"tnum"',
+              }}>
+                {elapsedTime}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                turno en curso
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1334,19 +1378,119 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       <style jsx>{`
         .live-dot {
           display: inline-block;
-          animation: pulse 2s ease-in-out infinite;
+          animation: pulse-live 2s ease-in-out infinite;
         }
-        @keyframes pulse {
+        @keyframes pulse-live {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+          50% { opacity: 0.4; }
+        }
+        .mesa-card {
+          transition: all 0.3s ease;
+        }
+        .mesa-card:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        .mesa-card.dragging {
+          opacity: 0.5;
+        }
+        .product-card {
+          transition: all 0.12s ease;
+        }
+        .product-card:hover:not([style*="not-allowed"]) {
+          border-color: var(--accent);
+          transform: scale(1.02);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        .product-card:active:not([style*="not-allowed"]) {
+          transform: scale(0.97);
+          background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+        }
+        .product-add-animation {
+          animation: productAdd 200ms ease;
+        }
+        @keyframes productAdd {
+          0% { transform: scale(1); }
+          50% { transform: scale(0.95); }
+          75% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        .total-flash {
+          animation: totalFlash 300ms ease;
+        }
+        @keyframes totalFlash {
+          0% { color: var(--ink); }
+          50% { color: var(--accent); }
+          100% { color: var(--ink); }
+        }
+        .btn.primary:hover:not(:disabled) {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+        .btn.primary:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .icon-btn.sm {
+          transition: all 0.15s;
+        }
+        .icon-btn.sm:hover {
+          border-color: var(--accent);
+          color: var(--accent);
+        }
+        .icon-btn.sm[style*="var(--red)"]:hover {
+          background: var(--red);
+          color: white;
+          border-color: var(--red);
+        }
+        .mobile-tabs {
+          border-bottom: 1px solid var(--line);
+          background: var(--panel);
+        }
+        .mobile-tabs button {
+          flex: 1;
+          padding: 12px;
+          text-align: center;
+          font-weight: 700;
+          border: none;
+          background: transparent;
+          border-bottom: 2px solid transparent;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .mobile-tabs button.active {
+          border-bottom-color: var(--accent);
+          color: var(--accent);
         }
         @media (max-width: 768px) {
+          .header-strip {
+            flex-direction: column !important;
+            gap: 12px;
+            align-items: flex-start !important;
+          }
+          .header-strip > div:nth-child(2) {
+            max-width: 100% !important;
+          }
           .mesa-grid {
             grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
           }
           .pos-modal {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
             grid-template-columns: 1fr !important;
-            max-height: 95vh !important;
+          }
+          .mobile-tabs {
+            display: flex !important;
+          }
+          .catalogo-column,
+          .consumo-column {
+            display: flex !important;
+          }
+          .product-card {
+            padding: 10px !important;
           }
         }
       `}</style>
