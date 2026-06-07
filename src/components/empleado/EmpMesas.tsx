@@ -91,9 +91,20 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       }, () => loadMesas())
       .subscribe();
 
+    const productsChannel = supabase
+      .channel(`products-emp:${comercioId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'products',
+        filter: `comercio_id=eq.${comercioId}`,
+      }, () => loadProducts())
+      .subscribe();
+
     return () => {
       supabase.removeChannel(mesasChannel);
       supabase.removeChannel(itemsChannel);
+      supabase.removeChannel(productsChannel);
     };
   }, [comercioId, shiftId]);
 
@@ -230,12 +241,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       return;
     }
 
-    // Actualizar estado local de products INMEDIATAMENTE
-    setProducts(prev => prev.map(p =>
-      p.id === product.id
-        ? { ...p, stock: p.stock - 1 }
-        : p
-    ));
+    // El Realtime de products actualizará el estado automáticamente
 
     const existing = selectedMesa.items.find(i => i.product_id === product.id);
     if (existing) {
@@ -282,12 +288,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       .eq('id', item.product_id)
       .gt('stock', 0);
 
-    // Actualizar estado local de products INMEDIATAMENTE
-    setProducts(prev => prev.map(p =>
-      p.id === item.product_id
-        ? { ...p, stock: p.stock - 1 }
-        : p
-    ));
+    // El Realtime de products actualizará el estado automáticamente
 
     await supabase
       .from('mesa_items')

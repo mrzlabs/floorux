@@ -15,6 +15,13 @@ const MOTIVOS_AGREGAR = [
   'Otro'
 ];
 
+const MOTIVOS_REDUCIR = [
+  'Error del empleado',
+  'Cliente cambió pedido',
+  'Producto equivocado',
+  'Otro'
+];
+
 const MOTIVOS_ELIMINAR = [
   'Error de pedido',
   'Cortesía',
@@ -71,6 +78,12 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
   const [selectedItem, setSelectedItem] = useState<CartItem | null>(null);
   const [removeMotivo, setRemoveMotivo] = useState('');
   const [removeMotivoCustom, setRemoveMotivoCustom] = useState('');
+
+  // Modal: Reducir cantidad con nota
+  const [showReduceNota, setShowReduceNota] = useState(false);
+  const [reduceItem, setReduceItem] = useState<CartItem | null>(null);
+  const [reduceMotivo, setReduceMotivo] = useState('');
+  const [reduceMotivoCustom, setReduceMotivoCustom] = useState('');
 
   // Modal: Cerrar mesa con nota
   const [showCerrarNota, setShowCerrarNota] = useState(false);
@@ -218,6 +231,67 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
 
     toast('Producto agregado con nota de auditoría', 'check');
     setShowAddNota(false);
+  }
+
+  function handleReduceQty(item: CartItem) {
+    if (item.qty === 1) {
+      // Si qty=1, activar flujo de eliminar completo
+      openRemoveNota(item);
+    } else {
+      // Si qty>1, activar flujo de reducir
+      setReduceItem(item);
+      setReduceMotivo('');
+      setReduceMotivoCustom('');
+      setShowReduceNota(true);
+    }
+  }
+
+  async function confirmarReducir() {
+    if (!selectedMesa || !reduceItem) return;
+
+    const motivoFinal = reduceMotivo === 'Otro' ? reduceMotivoCustom : reduceMotivo;
+    if (!motivoFinal.trim()) {
+      toast('El motivo es obligatorio', 'alert');
+      return;
+    }
+
+    const newQty = reduceItem.qty - 1;
+
+    // Devolver 1 unidad al stock
+    const product = products.find(p => p.id === reduceItem.product_id);
+    if (product) {
+      await supabase
+        .from('products')
+        .update({ stock: product.stock + 1 })
+        .eq('id', reduceItem.product_id);
+    }
+
+    // Actualizar cantidad en mesa_items
+    await supabase
+      .from('mesa_items')
+      .update({ qty: newQty })
+      .eq('mesa_id', selectedMesa.id)
+      .eq('product_id', reduceItem.product_id);
+
+    // Audit log
+    await supabase.from('audit_logs').insert({
+      actor_id: adminId,
+      actor_role: 'admin',
+      action: 'REDUCE_QTY_ADMIN',
+      table_name: 'mesa_items',
+      record_id: selectedMesa.id,
+      payload: {
+        product_name: reduceItem.name,
+        qty_retirada: 1,
+        qty_restante: newQty,
+        motivo: motivoFinal,
+        mesa_name: selectedMesa.name,
+        empleado_id: selectedMesa.opened_by,
+      },
+    });
+
+    toast('Cantidad reducida con nota de auditoría', 'check');
+    setShowReduceNota(false);
   }
 
   function openRemoveNota(item: CartItem) {
@@ -693,8 +767,26 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
                           gap: 10,
                         }}
                       >
-                        <div style={{ fontSize: 16, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
-                          {item.qty}×
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            className="icon-btn sm"
+                            onClick={() => handleReduceQty(item)}
+                          >
+                            <Icon name="minus" s={14} />
+                          </button>
+                          <span style={{ fontSize: 16, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
+                            {item.qty}
+                          </span>
+                          <button
+                            className="icon-btn sm"
+                            onClick={() => {
+                              // Agregar 1 unidad más (reutilizar lógica de agregar)
+                              const product = products.find(p => p.id === item.product_id);
+                              if (product) openAddNota(product);
+                            }}
+                          >
+                            <Icon name="plus" s={14} />
+                          </button>
                         </div>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -778,6 +870,53 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
             </button>
             <button className="btn pri" onClick={confirmarAgregar} style={{ flex: 1 }}>
               Confirmar y agregar
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal: Reducir cantidad con nota */}
+      {showReduceNota && reduceItem && (
+        <Modal title="Retirar unidad" onClose={() => setShowReduceNota(false)}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
+              Vas a retirar 1 unidad de {reduceItem.name}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+              Quedarán {reduceItem.qty - 1} unidades en la cuenta
+            </div>
+          </div>
+
+          <Field label="Motivo (obligatorio)">
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+              {MOTIVOS_REDUCIR.map(m => (
+                <button
+                  key={m}
+                  className={'fchip' + (reduceMotivo === m ? ' on' : '')}
+                  style={reduceMotivo === m ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' } : undefined}
+                  onClick={() => setReduceMotivo(m)}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            {reduceMotivo === 'Otro' && (
+              <textarea
+                className="inp"
+                rows={3}
+                placeholder="Escribe el motivo..."
+                value={reduceMotivoCustom}
+                onChange={e => setReduceMotivoCustom(e.target.value)}
+              />
+            )}
+          </Field>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button className="btn" onClick={() => setShowReduceNota(false)} style={{ flex: 1 }}>
+              Cancelar
+            </button>
+            <button className="btn pri" onClick={confirmarReducir} style={{ flex: 1 }}>
+              Confirmar retiro
             </button>
           </div>
         </Modal>
