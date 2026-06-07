@@ -1589,6 +1589,324 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
         </div>
       )}
 
+      {/* Modal reducir cantidad (admin) */}
+      {isAdmin && showReduceNota && reduceItem && (
+        <Modal title={`Reducir cantidad: ${reduceItem.name}`} onClose={() => {
+          setShowReduceNota(false);
+          setReduceItem(null);
+          setReduceQty(1);
+          setReduceMotivo('');
+          setReduceMotivoCustom('');
+        }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--muted)',
+              marginBottom: 10,
+            }}>
+              Motivo de la acción
+            </div>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}>
+              {MOTIVOS_REDUCIR.map((motivo) => (
+                <div
+                  key={motivo}
+                  style={{
+                    padding: '12px 16px',
+                    border: reduceMotivo === motivo
+                      ? '2px solid var(--accent)'
+                      : '1.5px solid var(--line)',
+                    borderRadius: 'var(--r-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    background: reduceMotivo === motivo
+                      ? 'color-mix(in srgb, var(--accent) 8%, var(--panel))'
+                      : 'var(--panel)',
+                  }}
+                  onClick={() => setReduceMotivo(motivo)}
+                >
+                  <div style={{
+                    fontSize: 14,
+                    fontWeight: reduceMotivo === motivo ? 700 : 600,
+                  }}>
+                    {motivo}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {reduceMotivo === 'Otro' && (
+              <Field label="Especifica el motivo" style={{ marginTop: 12 }}>
+                <textarea
+                  className="inp"
+                  placeholder="Escribe el motivo..."
+                  value={reduceMotivoCustom}
+                  onChange={(e) => setReduceMotivoCustom(e.target.value)}
+                  style={{
+                    width: '100%',
+                    minHeight: 80,
+                    resize: 'vertical',
+                  }}
+                  autoFocus
+                />
+              </Field>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            <button
+              className="btn"
+              onClick={() => {
+                setShowReduceNota(false);
+                setReduceItem(null);
+                setReduceQty(1);
+                setReduceMotivo('');
+                setReduceMotivoCustom('');
+              }}
+              style={{ flex: 1 }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                const finalMotivo = reduceMotivo === 'Otro' ? reduceMotivoCustom : reduceMotivo;
+                if (finalMotivo.trim()) {
+                  reducirCantidad(reduceItem, reduceQty, finalMotivo);
+                  setShowReduceNota(false);
+                  setReduceItem(null);
+                  setReduceQty(1);
+                  setReduceMotivo('');
+                  setReduceMotivoCustom('');
+                }
+              }}
+              disabled={!reduceMotivo || (reduceMotivo === 'Otro' && !reduceMotivoCustom.trim())}
+              style={{
+                flex: 1,
+                background: 'var(--accent)',
+                borderColor: 'var(--accent)',
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal eliminar ítem (admin) */}
+      {isAdmin && showRemoveNota && selectedItem && (
+        <Modal title={`Eliminar: ${selectedItem.name}`} onClose={() => {
+          setShowRemoveNota(false);
+          setSelectedItem(null);
+          setRemoveMotivo('');
+          setRemoveMotivoCustom('');
+        }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--muted)',
+              marginBottom: 10,
+            }}>
+              Motivo de la acción
+            </div>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}>
+              {MOTIVOS_ELIMINAR.map((motivo) => (
+                <div
+                  key={motivo}
+                  style={{
+                    padding: '12px 16px',
+                    border: removeMotivo === motivo
+                      ? '2px solid var(--accent)'
+                      : '1.5px solid var(--line)',
+                    borderRadius: 'var(--r-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    background: removeMotivo === motivo
+                      ? 'color-mix(in srgb, var(--accent) 8%, var(--panel))'
+                      : 'var(--panel)',
+                  }}
+                  onClick={() => setRemoveMotivo(motivo)}
+                >
+                  <div style={{
+                    fontSize: 14,
+                    fontWeight: removeMotivo === motivo ? 700 : 600,
+                  }}>
+                    {motivo}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {removeMotivo === 'Otro' && (
+              <Field label="Especifica el motivo" style={{ marginTop: 12 }}>
+                <textarea
+                  className="inp"
+                  placeholder="Escribe el motivo..."
+                  value={removeMotivoCustom}
+                  onChange={(e) => setRemoveMotivoCustom(e.target.value)}
+                  style={{
+                    width: '100%',
+                    minHeight: 80,
+                    resize: 'vertical',
+                  }}
+                  autoFocus
+                />
+              </Field>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            <button
+              className="btn"
+              onClick={() => {
+                setShowRemoveNota(false);
+                setSelectedItem(null);
+                setRemoveMotivo('');
+                setRemoveMotivoCustom('');
+              }}
+              style={{ flex: 1 }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                const finalMotivo = removeMotivo === 'Otro' ? removeMotivoCustom : removeMotivo;
+                if (finalMotivo.trim()) {
+                  removeItem(selectedItem, finalMotivo);
+                  setShowRemoveNota(false);
+                  setSelectedItem(null);
+                  setRemoveMotivo('');
+                  setRemoveMotivoCustom('');
+                }
+              }}
+              disabled={!removeMotivo || (removeMotivo === 'Otro' && !removeMotivoCustom.trim())}
+              style={{
+                flex: 1,
+                background: 'var(--accent)',
+                borderColor: 'var(--accent)',
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal cancelar mesa (admin) */}
+      {isAdmin && showCancelarNota && selectedMesa && (
+        <Modal title={`Cancelar mesa: ${selectedMesa.name}`} onClose={() => {
+          setShowCancelarNota(false);
+          setCancelarMotivo('');
+          setCancelarMotivoCustom('');
+        }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--muted)',
+              marginBottom: 10,
+            }}>
+              Motivo de la acción
+            </div>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}>
+              {MOTIVOS_CANCELAR.map((motivo) => (
+                <div
+                  key={motivo}
+                  style={{
+                    padding: '12px 16px',
+                    border: cancelarMotivo === motivo
+                      ? '2px solid var(--accent)'
+                      : '1.5px solid var(--line)',
+                    borderRadius: 'var(--r-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    background: cancelarMotivo === motivo
+                      ? 'color-mix(in srgb, var(--accent) 8%, var(--panel))'
+                      : 'var(--panel)',
+                  }}
+                  onClick={() => setCancelarMotivo(motivo)}
+                >
+                  <div style={{
+                    fontSize: 14,
+                    fontWeight: cancelarMotivo === motivo ? 700 : 600,
+                  }}>
+                    {motivo}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {cancelarMotivo === 'Otro' && (
+              <Field label="Especifica el motivo" style={{ marginTop: 12 }}>
+                <textarea
+                  className="inp"
+                  placeholder="Escribe el motivo..."
+                  value={cancelarMotivoCustom}
+                  onChange={(e) => setCancelarMotivoCustom(e.target.value)}
+                  style={{
+                    width: '100%',
+                    minHeight: 80,
+                    resize: 'vertical',
+                  }}
+                  autoFocus
+                />
+              </Field>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            <button
+              className="btn"
+              onClick={() => {
+                setShowCancelarNota(false);
+                setCancelarMotivo('');
+                setCancelarMotivoCustom('');
+              }}
+              style={{ flex: 1 }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                const finalMotivo = cancelarMotivo === 'Otro' ? cancelarMotivoCustom : cancelarMotivo;
+                if (finalMotivo.trim()) {
+                  cancelarMesa(finalMotivo);
+                  setShowCancelarNota(false);
+                  setCancelarMotivo('');
+                  setCancelarMotivoCustom('');
+                }
+              }}
+              disabled={!cancelarMotivo || (cancelarMotivo === 'Otro' && !cancelarMotivoCustom.trim())}
+              style={{
+                flex: 1,
+                background: 'var(--accent)',
+                borderColor: 'var(--accent)',
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* Modal de cobro */}
       {selectedMesa && showingCobro && (
         <Modal title="" onClose={() => setShowingCobro(false)} wide>
