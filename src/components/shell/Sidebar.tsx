@@ -28,7 +28,7 @@ interface SidebarProps {
   profile: Profile;
   navItems: NavItem[];
   shopName: string;
-  shopSub: string;
+  shopSub: string | React.ReactNode;
   shopColor: string;
   shopImg?: string | null;
   onClose?: () => void;
@@ -41,9 +41,10 @@ interface SidebarProps {
   brandFallbackInitials?: string;
   roleThumb?: RoleThumb;
   navFooter?: React.ReactNode;
+  onShopImgClick?: () => void;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, onBrandLogoClick, brandFallbackColor, brandFallbackInitials, roleThumb, navFooter }: SidebarProps) {
+export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, onBrandLogoClick, brandFallbackColor, brandFallbackInitials, roleThumb, navFooter, onShopImgClick }: SidebarProps) {
   const pathname = usePathname();
   const [logoHover, setLogoHover] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -173,7 +174,13 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
       <div
         className="shop"
         style={{ cursor: shopImg ? 'zoom-in' : undefined }}
-        onClick={() => shopImg && setShowShopPhoto(true)}
+        onClick={() => {
+          if (onShopImgClick) {
+            onShopImgClick();
+          } else if (shopImg) {
+            setShowShopPhoto(true);
+          }
+        }}
       >
         <Avatar name={shopName} color={shopColor} img={shopImg ?? undefined} />
         <div style={{ minWidth: 0 }}>
