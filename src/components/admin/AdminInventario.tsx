@@ -171,11 +171,89 @@ export function AdminInventario({ comercioId, comercioName = 'Comercio' }: Admin
         <td style="padding:5px 8px;text-align:right;font-weight:700">$${p.price.toLocaleString('es-CO')}</td>
         <td style="padding:5px 8px;text-align:right;color:#16a34a">$${(p.price - p.cost).toLocaleString('es-CO')}</td>
       </tr>`).join('');
+
+    // SVG de Maylo hardcodeado
+    const MAYLO_SVG_B64 = (() => {
+      const svg = `<svg viewBox="0 0 260 332" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="wbody" x1=".2" y1="0" x2=".8" y2="1">
+            <stop offset="0" stop-color="#897CEC"/>
+            <stop offset=".6" stop-color="#6E61D8"/>
+            <stop offset="1" stop-color="#493BA6"/>
+          </linearGradient>
+          <linearGradient id="whead" x1=".2" y1="0" x2=".7" y2="1">
+            <stop offset="0" stop-color="#9A8EF7"/>
+            <stop offset=".55" stop-color="#6E61D8"/>
+            <stop offset="1" stop-color="#493BA6"/>
+          </linearGradient>
+          <radialGradient id="wjoint" cx=".35" cy=".3" r=".8">
+            <stop offset="0" stop-color="#B8AFF6"/>
+            <stop offset="1" stop-color="#46399A"/>
+          </radialGradient>
+          <radialGradient id="wiris" cx=".5" cy=".5" r=".5">
+            <stop offset="0" stop-color="#FFE680"/>
+            <stop offset=".55" stop-color="#F5C400"/>
+            <stop offset="1" stop-color="#C99A00"/>
+          </radialGradient>
+          <linearGradient id="wvisor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2C2560"/>
+            <stop offset="1" stop-color="#0A0722"/>
+          </linearGradient>
+        </defs>
+        <ellipse cx="130" cy="320" rx="80" ry="13" fill="#000" opacity=".35"/>
+        <rect x="102" y="250" width="18" height="34" rx="9" fill="url(#wbody)" stroke="#150D3A" stroke-width="3"/>
+        <rect x="140" y="250" width="18" height="34" rx="9" fill="url(#wbody)" stroke="#150D3A" stroke-width="3"/>
+        <rect x="89" y="296" width="42" height="20" rx="9" fill="url(#wbody)" stroke="#150D3A" stroke-width="3"/>
+        <rect x="129" y="296" width="42" height="20" rx="9" fill="url(#wbody)" stroke="#150D3A" stroke-width="3"/>
+        <rect x="61" y="184" width="22" height="42" rx="11" fill="url(#wbody)" stroke="#150D3A" stroke-width="3"/>
+        <rect x="177" y="184" width="22" height="42" rx="11" fill="url(#wbody)" stroke="#150D3A" stroke-width="3"/>
+        <circle cx="72" cy="184" r="13" fill="url(#wjoint)" stroke="#150D3A" stroke-width="2.4"/>
+        <circle cx="188" cy="184" r="13" fill="url(#wjoint)" stroke="#150D3A" stroke-width="2.4"/>
+        <circle cx="72" cy="230" r="14" fill="url(#wjoint)" stroke="#150D3A" stroke-width="2.4"/>
+        <circle cx="188" cy="230" r="14" fill="url(#wjoint)" stroke="#150D3A" stroke-width="2.4"/>
+        <rect x="106" y="150" width="48" height="26" rx="11" fill="url(#wjoint)" stroke="#150D3A" stroke-width="3"/>
+        <rect x="64" y="168" width="132" height="94" rx="38" fill="url(#wbody)" stroke="#150D3A" stroke-width="3"/>
+        <rect x="92" y="194" width="76" height="40" rx="12" fill="url(#wvisor)" stroke="#150D3A" stroke-width="2.4"/>
+        <circle cx="108" cy="220" r="5" fill="#27C3D8"/>
+        <rect x="120" y="215" width="11" height="10" rx="5" fill="#F5C400"/>
+        <circle cx="144" cy="220" r="5" fill="#5A82EE"/>
+        <rect x="126" y="8" width="8" height="26" rx="4" fill="url(#wjoint)" stroke="#150D3A" stroke-width="2.4"/>
+        <circle cx="130" cy="9" r="6.5" fill="#27C3D8"/>
+        <circle cx="48" cy="98" r="11" fill="#9DA2D8" stroke="#150D3A" stroke-width="2.4"/>
+        <circle cx="48" cy="98" r="4.5" fill="#27C3D8"/>
+        <circle cx="212" cy="98" r="11" fill="#9DA2D8" stroke="#150D3A" stroke-width="2.4"/>
+        <circle cx="212" cy="98" r="4.5" fill="#5A82EE"/>
+        <rect x="38" y="76" width="16" height="44" rx="8" fill="#9DA2D8" stroke="#150D3A" stroke-width="2.4"/>
+        <rect x="206" y="76" width="16" height="44" rx="8" fill="#9DA2D8" stroke="#150D3A" stroke-width="2.4"/>
+        <rect x="44" y="30" width="172" height="122" rx="46" fill="url(#whead)" stroke="#150D3A" stroke-width="3"/>
+        <ellipse cx="96" cy="48" rx="60" ry="26" fill="#fff" opacity=".14"/>
+        <rect x="58" y="50" width="144" height="86" rx="36" fill="url(#wvisor)" stroke="#150D3A" stroke-width="3"/>
+        <circle cx="100" cy="92" r="30" fill="#585CA0" stroke="#150D3A" stroke-width="3"/>
+        <circle cx="100" cy="92" r="21" fill="#0B0822"/>
+        <circle cx="100" cy="92" r="16" fill="url(#wvisor)"/>
+        <circle cx="100" cy="92" r="11" fill="url(#wiris)"/>
+        <circle cx="100" cy="92" r="6" fill="#0B0822"/>
+        <circle cx="91" cy="83" r="5" fill="#fff" opacity=".85"/>
+        <circle cx="160" cy="92" r="30" fill="#585CA0" stroke="#150D3A" stroke-width="3"/>
+        <circle cx="160" cy="92" r="21" fill="#0B0822"/>
+        <circle cx="160" cy="92" r="16" fill="url(#wvisor)"/>
+        <circle cx="160" cy="92" r="11" fill="url(#wiris)"/>
+        <circle cx="160" cy="92" r="6" fill="#0B0822"/>
+        <circle cx="151" cy="83" r="5" fill="#fff" opacity=".85"/>
+        <rect x="120" y="84" width="20" height="16" rx="8" fill="#9DA2D8" stroke="#150D3A" stroke-width="2.4"/>
+      </svg>`;
+      try {
+        return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+      } catch {
+        return '';
+      }
+    })();
+
     const div = document.createElement('div');
     div.id = pid;
     div.innerHTML = `
       <div style="position:relative;font-family:system-ui,sans-serif;padding:28px;color:#111">
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.04;color:#7F77DD;font-weight:900;white-space:nowrap;pointer-events:none;user-select:none">MAYLO</div>
+        <img src="${MAYLO_SVG_B64}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;opacity:.06;pointer-events:none;user-select:none;z-index:0" />
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:2px solid #111;padding-bottom:14px">
           <div>
             <div style="font-size:24px;font-weight:900">FloorUX<span style="color:#7F77DD">.</span></div>
