@@ -12,10 +12,10 @@ import type { Profile, Comercio } from '@/types/db';
 
 const DEFAULT_PALETTE = ['#7F77DD', '#27C3D8', '#B57BE0'];
 
-function createNav(comercioName: string) {
+function createNav(comercioName: string, unreadCount?: number) {
   return [
     { href: '/empleado/mesas', label: 'Mesas', icon: 'mesas', title: 'Mesas', sub: `Abre, despacha y cobra · ${comercioName}` },
-    { href: '/empleado/turno', label: 'Mi turno', icon: 'clock', title: 'Mi turno', sub: `Resumen y cierre · ${comercioName}` },
+    { href: '/empleado/turno', label: 'Mi turno', icon: 'clock', title: 'Mi turno', sub: `Resumen, soporte y cierre · ${comercioName}`, count: unreadCount },
     { href: '/empleado/historial', label: 'Historial', icon: 'history', title: 'Mi historial', sub: `Lo que has vendido · ${comercioName}` },
     { href: '/empleado/chat', label: 'Chat', icon: 'chat', title: 'Chat interno', sub: `Admin y Super Admin enlazados · ${comercioName}` },
   ];
@@ -40,6 +40,7 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
   const [comercio, setComercio] = useState<Partial<Comercio>>({ name: '', color: '#7F77DD' });
   const [brandLightbox, setBrandLightbox] = useState(false);
   const [avatarLightbox, setAvatarLightbox] = useState(false);
+  const [unreadTickets, setUnreadTickets] = useState(0);
   useTheme(themeMode, themePalette);
 
   useEffect(() => {
@@ -59,6 +60,18 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         }
       });
 
+    // Cargar tickets sin leer
+    async function loadUnreadTickets() {
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('ticket_type', 'soporte')
+        .eq('recipient_id', profile.id)
+        .is('read_at', null);
+      setUnreadTickets(count ?? 0);
+    }
+    loadUnreadTickets();
+
     const channel = supabase
       .channel(`emp-theme-${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comercios', filter: `id=eq.${id}` },
@@ -71,17 +84,19 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
             setThemePalette(cfg.palette);
           }
         })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${profile.id}` },
+        () => loadUnreadTickets())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [profile.comercio_id]);
+  }, [profile.comercio_id, profile.id]);
 
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
   const [toast, setToast] = useState<{ msg: string; icon: string } | null>(null);
 
-  const nav = createNav(comercio.name || '');
+  const nav = createNav(comercio.name || '', unreadTickets);
   const navItem = nav.find(n => n.href.endsWith(view)) ?? nav[0];
   const fire = (msg: string, icon = 'check') => { setToast({ msg, icon }); setTimeout(() => setToast(null), 2400); };
 
