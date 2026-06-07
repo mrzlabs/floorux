@@ -264,7 +264,14 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       return;
     }
 
-    // Descontar del inventario INMEDIATAMENTE
+    // 1. Optimistic update: descontar inmediatamente del estado local
+    setProducts(prev => prev.map(p =>
+      p.id === product.id
+        ? { ...p, stock: p.stock - 1 }
+        : p
+    ));
+
+    // 2. Persistir en BD (async con validación)
     const { error: stockError } = await supabase
       .from('products')
       .update({ stock: product.stock - 1 })
@@ -272,12 +279,17 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       .gt('stock', 0);
 
     if (stockError) {
+      // 3. Revertir si falla
+      setProducts(prev => prev.map(p =>
+        p.id === product.id
+          ? { ...p, stock: p.stock + 1 }
+          : p
+      ));
       toast('Error al actualizar inventario', 'alert');
       return;
     }
 
-    // El Realtime de products actualizará el estado automáticamente
-
+    // 4. Agregar a mesa_items
     const existing = selectedMesa.items.find(i => i.product_id === product.id);
     if (existing) {
       const newQty = existing.qty + 1;
@@ -295,14 +307,33 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
         unit_cost: product.cost,
       });
     }
+
+    // 5. Trigger animación productAdd
+    const card = document.querySelector(`[data-product-id="${product.id}"]`);
+    if (card) {
+      card.classList.add('product-add-animation');
+      setTimeout(() => card.classList.remove('product-add-animation'), 200);
+    }
+
+    // 6. Trigger total flash
+    setTotalFlash(true);
+    setTimeout(() => setTotalFlash(false), 300);
   }
 
   async function updateItemQty(item: CartItem, delta: number) {
     if (!selectedMesa) return;
 
     // EMPLEADO: solo puede aumentar cantidad, NO reducir
-    if (delta < 0) {
+    if (!isAdmin && delta < 0) {
       toast('Contacta al administrador para reducir cantidades', 'alert');
+      return;
+    }
+
+    // ADMIN: puede aumentar o reducir
+    if (isAdmin && delta < 0) {
+      // Abrir modal de reducir cantidad
+      setReduceItem(item);
+      setShowReduceNota(true);
       return;
     }
 
@@ -317,13 +348,30 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       toast('Producto agotado', 'alert');
       return;
     }
-    await supabase
+
+    // Optimistic update
+    setProducts(prev => prev.map(p =>
+      p.id === item.product_id
+        ? { ...p, stock: p.stock - 1 }
+        : p
+    ));
+
+    const { error } = await supabase
       .from('products')
       .update({ stock: product.stock - 1 })
       .eq('id', item.product_id)
       .gt('stock', 0);
 
-    // El Realtime de products actualizará el estado automáticamente
+    if (error) {
+      // Revertir
+      setProducts(prev => prev.map(p =>
+        p.id === item.product_id
+          ? { ...p, stock: p.stock + 1 }
+          : p
+      ));
+      toast('Error al actualizar inventario', 'alert');
+      return;
+    }
 
     await supabase
       .from('mesa_items')
