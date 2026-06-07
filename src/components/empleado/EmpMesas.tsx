@@ -218,6 +218,18 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       return;
     }
 
+    // Descontar del inventario INMEDIATAMENTE
+    const { error: stockError } = await supabase
+      .from('products')
+      .update({ stock: product.stock - 1 })
+      .eq('id', product.id)
+      .gt('stock', 0);
+
+    if (stockError) {
+      toast('Error al actualizar inventario', 'alert');
+      return;
+    }
+
     const existing = selectedMesa.items.find(i => i.product_id === product.id);
     if (existing) {
       const newQty = existing.qty + 1;
@@ -240,6 +252,30 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
   async function updateItemQty(item: CartItem, delta: number) {
     if (!selectedMesa) return;
     const newQty = item.qty + delta;
+
+    // Obtener producto actual para calcular nuevo stock
+    const product = products.find(p => p.id === item.product_id);
+    if (!product) return;
+
+    if (delta < 0) {
+      // Reduciendo cantidad: devolver al inventario
+      await supabase
+        .from('products')
+        .update({ stock: product.stock + 1 })
+        .eq('id', item.product_id);
+    } else {
+      // Aumentando cantidad: descontar del inventario
+      if (product.stock <= 0) {
+        toast('Producto agotado', 'alert');
+        return;
+      }
+      await supabase
+        .from('products')
+        .update({ stock: product.stock - 1 })
+        .eq('id', item.product_id)
+        .gt('stock', 0);
+    }
+
     if (newQty <= 0) {
       await supabase
         .from('mesa_items')
@@ -257,11 +293,50 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
   async function removeItem(item: CartItem) {
     if (!selectedMesa) return;
+
+    // Devolver stock completo al inventario
+    const product = products.find(p => p.id === item.product_id);
+    if (product) {
+      await supabase
+        .from('products')
+        .update({ stock: product.stock + item.qty })
+        .eq('id', item.product_id);
+    }
+
     await supabase
       .from('mesa_items')
       .delete()
       .eq('mesa_id', selectedMesa.id)
       .eq('product_id', item.product_id);
+  }
+
+  async function cancelarMesa() {
+    if (!selectedMesa) return;
+
+    if (!confirm('¿Cerrar mesa sin cobrar? Se devolverá el inventario.')) return;
+
+    // Devolver todo el stock al inventario
+    for (const item of selectedMesa.items) {
+      const product = products.find(p => p.id === item.product_id);
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ stock: product.stock + item.qty })
+          .eq('id', item.product_id);
+      }
+    }
+
+    // Eliminar items de la mesa
+    await supabase.from('mesa_items').delete().eq('mesa_id', selectedMesa.id);
+
+    // Liberar mesa
+    await supabase
+      .from('mesas')
+      .update({ status: 'libre', alias: null, opened_at: null, opened_by: null })
+      .eq('id', selectedMesa.id);
+
+    toast('Mesa cerrada y stock devuelto', 'check');
+    setSelectedMesa(null);
   }
 
   async function cobrarMesa() {
@@ -344,18 +419,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
     await supabase.from('sale_items').insert(saleItems);
 
-    // Actualizar stock de productos
-    for (const item of selectedMesa.items) {
-      if (item.tracked) {
-        const product = products.find(p => p.id === item.product_id);
-        if (product) {
-          await supabase
-            .from('products')
-            .update({ stock: product.stock - item.qty })
-            .eq('id', item.product_id);
-        }
-      }
-    }
+    // El stock ya fue descontado al agregar items — NO descontar de nuevo
 
     // Eliminar mesa_items
     await supabase.from('mesa_items').delete().eq('mesa_id', selectedMesa.id);
@@ -792,9 +856,18 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                       {selectedMesa.name} · {selectedMesa.alias}
                     </div>
                   </div>
-                  <button className="icon-btn" onClick={() => setSelectedMesa(null)}>
-                    <Icon name="close" s={20} />
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn sm danger"
+                      onClick={cancelarMesa}
+                      title="Cerrar sin cobrar y devolver stock"
+                    >
+                      <Icon name="close" s={14} /> Cancelar mesa
+                    </button>
+                    <button className="icon-btn" onClick={() => setSelectedMesa(null)}>
+                      <Icon name="close" s={20} />
+                    </button>
+                  </div>
                 </div>
 
                 <Field label="">
