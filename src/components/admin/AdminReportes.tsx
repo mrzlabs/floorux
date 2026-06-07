@@ -51,7 +51,7 @@ const fmtDateShort = (ts: string) => {
 type SaleWithItems = Sale & { sale_items: SaleItem[] };
 type AuditRow = { id:string; name:string; cat:string; price:number; vendidas:number; descontadas:number; diferencia:number; valorRiesgo:number };
 type EmpStat  = { id:string; name:string; color:string; mesas:number; recaudado:number };
-type TopProd  = { id:string; name:string; cat:string; cant:number; venta:number };
+type TopProd  = { id:string; name:string; cat:string; sub:string|null; cant:number; venta:number };
 type ShiftRow = { id:string; label:string; mesas:number; total:number; emp_name:string };
 
 interface AdminReportesProps {
@@ -77,8 +77,9 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
   const [auditSort, setAuditSort] = useState<{ k:string; asc:boolean }>({ k:'valorRiesgo', asc:false });
   const [topCat,    setTopCat]    = useState('all');
   const [empFilter, setEmpFilter] = useState('all');
-  const [payFilter, setPayFilter] = useState('all');
+  const [payFilters, setPayFilters] = useState<string[]>([]);
   const [liveAnimations, setLiveAnimations] = useState(false);
+  const [topProdSort, setTopProdSort] = useState<{ k: string; asc: boolean }>({ k: 'venta', asc: false });
 
   const supabase = createClient();
 
@@ -177,8 +178,16 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
     count: payMap[p.id]?.count ?? 0,
   }));
   const payTotal = payData.reduce((a, p) => a + p.v, 0);
-  const filtPay  = payFilter === 'all' ? payData : payData.filter(p => p.id === payFilter);
+  const filtPay  = payFilters.length === 0 ? payData : payData.filter(p => payFilters.includes(p.id));
   const maxPay   = Math.max(...payData.map(p => p.v), 1);
+
+  const togglePayFilter = (method: string) => {
+    setPayFilters(prev =>
+      prev.includes(method)
+        ? prev.filter(m => m !== method)
+        : [...prev, method]
+    );
+  };
 
   /* ── Inventory audit ────────────────────────────────────── */
   const auditRows = useMemo<AuditRow[]>(() => {
@@ -210,15 +219,35 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
     sales.flatMap(s => s.sale_items).forEach(si => {
       const prod = products.find(p => p.id === si.product_id);
       if (!prod) return;
-      if (!m[prod.id]) m[prod.id] = { id: prod.id, name: prod.name, cat: prod.cat, cant: 0, venta: 0 };
+      if (!m[prod.id]) m[prod.id] = { id: prod.id, name: prod.name, cat: prod.cat, sub: prod.sub, cant: 0, venta: 0 };
       m[prod.id].cant  += si.qty;
       m[prod.id].venta += si.qty * si.unit_price;
     });
-    return Object.values(m).sort((a, b) => b.venta - a.venta).slice(0, 10);
+    return Object.values(m);
   }, [sales, products]);
 
-  const filtTopProds = topCat === 'all' ? topProducts : topProducts.filter(p => p.cat === topCat);
+  const sortedTopProds = useMemo(() => {
+    const sorted = [...topProducts].sort((a, b) => {
+      if (topProdSort.k === 'cant') {
+        return topProdSort.asc ? a.cant - b.cant : b.cant - a.cant;
+      }
+      return topProdSort.asc ? a.venta - b.venta : b.venta - a.venta;
+    });
+    return sorted;
+  }, [topProducts, topProdSort]);
+
+  const filtTopProds = useMemo(() => {
+    const filtered = topCat === 'all' ? sortedTopProds : sortedTopProds.filter(p => p.cat === topCat);
+    return filtered.slice(0, 10);
+  }, [topCat, sortedTopProds]);
+
   const topCats = ['all', ...Array.from(new Set(topProducts.map(p => p.cat)))];
+
+  const toggleTopProdSort = (key: string) => {
+    setTopProdSort(prev =>
+      prev.k === key ? { k: key, asc: !prev.asc } : { k: key, asc: false }
+    );
+  };
 
   /* ── Employee stats ─────────────────────────────────────── */
   const empStats = useMemo<EmpStat[]>(() => {
@@ -271,9 +300,22 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
     toast('CSV descargado', 'check');
   }
 
-  function doPDF() {
+  async function doPDF() {
     const pid = 'reporte-print';
     document.getElementById(pid)?.remove();
+
+    // Capturar SVG de Maylo como base64
+    let mayloSvg = '';
+    try {
+      // @ts-ignore
+      if (typeof window.maylo === 'function') {
+        // @ts-ignore
+        const svg = window.maylo({ eyes: 'open', mouth: 'smile', arms: 'down', panel: false });
+        mayloSvg = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+      }
+    } catch (e) {
+      console.warn('No se pudo capturar Maylo SVG:', e);
+    }
 
     const hourBars = hourlyData.map(d => {
       const h = d.h;
@@ -299,6 +341,10 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
 
     const date = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
 
+    const watermark = mayloSvg
+      ? `<img src="${mayloSvg}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;opacity:.06;pointer-events:none;user-select:none;z-index:0" />`
+      : `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:180px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;user-select:none;white-space:nowrap">MAYLO</div>`;
+
     const div = document.createElement('div');
     div.id = pid;
     div.innerHTML = `
@@ -306,7 +352,7 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
 
 <!-- PORTADA -->
 <div style="page-break-after:always;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px;position:relative">
-  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:180px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;user-select:none;white-space:nowrap">MAYLO</div>
+  ${watermark}
   <div style="font-size:52px;font-weight:900;letter-spacing:-.02em">FloorUX<span style="color:#7F77DD">.</span></div>
   <div style="font-size:13px;color:#666;text-transform:uppercase;letter-spacing:.18em;margin-top:6px">OperUX · CRM Nightlife</div>
   <div style="width:60px;height:3px;background:#7F77DD;border-radius:2px;margin:28px auto"></div>
@@ -318,7 +364,7 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
 
 <!-- S1: RESUMEN EJECUTIVO -->
 <div style="page-break-after:always;padding:40px;position:relative">
-  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  ${watermark}
   <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 1 — Resumen ejecutivo</h2>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     ${[['Ventas del período', COP(total),'#7F77DD'],['Utilidad bruta',COP(util),'#27C3D8'],['Mesas cerradas',String(sales.length),'#B57BE0'],['Ítems vendidos',String(itemsCount),'#F5C400']].map(([l,v,c])=>`<div style="border-left:3px solid ${c};padding:12px 16px;background:#fafafa;border-radius:0 8px 8px 0"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em">${l}</div><div style="font-size:22px;font-weight:900;color:#111;margin-top:4px">${v}</div></div>`).join('')}
@@ -337,7 +383,7 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
 
 <!-- S2: VENTAS POR HORA + EMPLEADOS -->
 <div style="page-break-after:always;padding:40px;position:relative">
-  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  ${watermark}
   <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 2 — Análisis de ventas</h2>
   <div style="margin-bottom:4px;font-size:12px;font-weight:700">Ventas por hora</div>
   <div style="display:flex;gap:8px;align-items:flex-end;height:120px;margin-bottom:24px">${hourBars}</div>
@@ -346,14 +392,14 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
 
 <!-- S3: INVENTARIO -->
 <div style="page-break-after:always;padding:40px;position:relative">
-  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  ${watermark}
   <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 3 — Cuadre de inventario</h2>
   ${auditPdf ? `<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="border-bottom:2px solid #111">${['Producto','Cat.','Vendidas','Salidas','Dif.','Valor riesgo'].map(h=>`<th style="text-align:left;padding:5px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.06em">${h}</th>`).join('')}</tr></thead><tbody>${auditPdf}</tbody></table><div style="margin-top:12px;font-size:12px;font-weight:700;color:#ef4444">Total valor en riesgo: ${COP(totalRiesgo)}</div>` : '<p style="color:#888;font-size:13px">Inventario cuadra correctamente en el período.</p>'}
 </div>
 
 <!-- S4: PAGOS + TOP PRODUCTOS -->
 <div style="padding:40px;position:relative">
-  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  ${watermark}
   <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 4 — Métodos de pago · Top productos</h2>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
     <div>
@@ -365,8 +411,9 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
       <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:4px 6px;font-size:9px;text-transform:uppercase">Producto</th><th style="text-align:right;padding:4px 6px;font-size:9px;text-transform:uppercase">Cant.</th><th style="text-align:right;padding:4px 6px;font-size:9px;text-transform:uppercase">Venta</th></tr></thead><tbody>${topRows}</tbody></table>
     </div>
   </div>
-  <div style="margin-top:40px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:12px">
-    FloorUX CRM · OperUX by mrzlabs · © 2026 Todos los derechos reservados
+  <div style="margin-top:40px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:12px;display:flex;align-items:center;justify-content:center;gap:8px">
+    ${mayloSvg ? `<img src="${mayloSvg}" style="width:24px;height:24px;opacity:.4" />` : ''}
+    <span>FloorUX CRM · OperUX by mrzlabs · © 2026 Todos los derechos reservados</span>
   </div>
 </div>
 
@@ -510,7 +557,7 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
           {/* Export buttons */}
           <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
             <button className="btn sm ghost" onClick={doCSV}><Icon name="download" s={14} /> CSV</button>
-            <button className="btn sm ghost" onClick={doPDF}><Icon name="receipt" s={14} /> PDF</button>
+            <button className="btn sm ghost" onClick={() => doPDF()}><Icon name="receipt" s={14} /> PDF</button>
           </div>
         </div>
         <div style={{ ...C, marginBottom:16, fontSize:12 }}>{rangeLabel(range)}</div>
@@ -851,16 +898,34 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
               <span style={{ fontSize:14, fontWeight:800 }}>Métodos de pago</span>
             </div>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
-              <button className={'fchip' + (payFilter === 'all' ? ' on' : '')} onClick={() => setPayFilter('all')} style={payFilter === 'all' ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}>
-                Todos ({filtPay.reduce((sum, p) => sum + (p.count || 0), 0)})
+              <button
+                className={'fchip' + (payFilters.length === 0 ? ' on' : '')}
+                onClick={() => setPayFilters([])}
+                style={payFilters.length === 0 ? {
+                  background: 'var(--accent)',
+                  borderColor: 'var(--accent)',
+                  color: '#0b0a12'
+                } : undefined}
+              >
+                Todos ({payData.reduce((sum, p) => sum + (p.count || 0), 0)})
               </button>
               {PAYMENTS.map(p => {
-                const payData = filtPay.find(fp => fp.id === p.id);
-                const count = payData?.count || 0;
+                const isSelected = payFilters.includes(p.id);
+                const count = payMap[p.id]?.count || 0;
                 return (
-                  <button key={p.id} className={'fchip' + (payFilter === p.id ? ' on' : '')}
-                    style={payFilter === p.id ? { background:p.color, borderColor:p.color, color:'#0b0a12' } : undefined}
-                    onClick={() => setPayFilter(payFilter === p.id ? 'all' : p.id)}>
+                  <button
+                    key={p.id}
+                    className={'fchip' + (isSelected ? ' on' : '')}
+                    style={isSelected ? {
+                      background: p.color,
+                      borderColor: p.color,
+                      color: '#0b0a12'
+                    } : {
+                      borderColor: p.color,
+                      color: p.color
+                    }}
+                    onClick={() => togglePayFilter(p.id)}
+                  >
                     {p.name} ({count})
                   </button>
                 );
@@ -900,25 +965,63 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
               ))}
             </div>
             <table className="tbl">
-              <thead><tr><th>Producto</th><th style={{ textAlign:'right' }}>Cant.</th><th style={{ textAlign:'right' }}>Venta</th></tr></thead>
+              <thead>
+                <tr>
+                  <th
+                    className="sortable"
+                    onClick={() => toggleTopProdSort('name')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    PRODUCTO {topProdSort.k === 'name' ? (topProdSort.asc ? '↑' : '↓') : ''}
+                  </th>
+                  <th
+                    className="sortable"
+                    onClick={() => toggleTopProdSort('cant')}
+                    style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    CANT. {topProdSort.k === 'cant' ? (topProdSort.asc ? '↑' : '↓') : ''}
+                  </th>
+                  <th
+                    className="sortable"
+                    onClick={() => toggleTopProdSort('venta')}
+                    style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    VENTA {topProdSort.k === 'venta' ? (topProdSort.asc ? '↑' : '↓') : ''}
+                  </th>
+                </tr>
+              </thead>
               <tbody>
-                {filtTopProds.slice(0, 10).map((p, i) => {
+                {filtTopProds.map((p, i) => {
                   const medals = ['🥇', '🥈', '🥉'];
                   const medal = i < 3 ? medals[i] : null;
+                  const borderColors = ['var(--accent)', 'var(--accent2)', 'var(--accent3)'];
+                  const bgColors = [
+                    'color-mix(in srgb, var(--accent) 8%, transparent)',
+                    'color-mix(in srgb, var(--accent2) 8%, transparent)',
+                    'color-mix(in srgb, var(--accent3) 8%, transparent)',
+                  ];
                   return (
-                    <tr key={p.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
-                      <td style={{
-                        ...F13,
-                        fontWeight: i < 3 ? 700 : 400,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
-                      }}>
-                        {medal && <span style={{ fontSize: 16 }}>{medal}</span>}
-                        {!medal && `${i+1}.`} {p.name}
+                    <tr
+                      key={p.id}
+                      style={medal ? {
+                        background: bgColors[i],
+                        borderLeft: `3px solid ${borderColors[i]}`,
+                      } : i % 2 === 1 ? { background: 'var(--panel2)' } : undefined}
+                    >
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {medal && <span style={{ fontSize: 18 }}>{medal}</span>}
+                          {!medal && <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 700 }}>{i + 1}.</span>}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{p.name}</div>
+                            {p.sub && (
+                              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{p.sub}</div>
+                            )}
+                          </div>
+                        </div>
                       </td>
-                      <td style={{ ...C, textAlign:'right' }}>{p.cant}</td>
-                      <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COPk(p.venta)}</td>
+                      <td style={{ textAlign: 'right', fontSize: 13 }}>{p.cant}</td>
+                      <td style={{ textAlign: 'right', fontSize: 13, fontWeight: 700 }}>{COP(p.venta)}</td>
                     </tr>
                   );
                 })}
@@ -930,82 +1033,107 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
           </div>
         </div>
 
-        {/* ─── 8. EMPLOYEE STATS ────────────────────────── */}
-        <div className="card" style={{ marginBottom:16 }}>
-          <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--line)' }}>
-            <span style={{ fontSize:14, fontWeight:800 }}>Ventas por empleado</span>
-          </div>
-          <div style={{ padding:'12px 16px', display:'flex', gap:6, flexWrap:'wrap', borderBottom:'1px solid var(--line)' }}>
-            <button className={'fchip' + (empFilter === 'all' ? ' on' : '')} style={empFilter === 'all' ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined} onClick={() => setEmpFilter('all')}>Todos</button>
-            {empStats.map(e => (
-              <button key={e.id} className={'fchip' + (empFilter === e.id ? ' on' : '')}
-                style={empFilter === e.id ? { background:e.color, borderColor:e.color, color:'#0b0a12' } : undefined}
-                onClick={() => setEmpFilter(empFilter === e.id ? 'all' : e.id)}>
-                {e.name}
+        {/* ─── 8+9. EMPLOYEE STATS + SHIFT DETAIL ─────── */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+          {/* Ventas por empleado */}
+          <div className="card" style={{ padding:20 }}>
+            <span style={{ fontSize:14, fontWeight:800, display:'block', marginBottom:14 }}>Ventas por empleado</span>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+              <button
+                className={'fchip' + (empFilter === 'all' ? ' on' : '')}
+                style={empFilter === 'all' ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}
+                onClick={() => setEmpFilter('all')}
+              >
+                Todos
               </button>
-            ))}
-          </div>
-          <table className="tbl">
-            <thead><tr><th>Empleado</th><th style={{ textAlign:'right' }}>Mesas</th><th style={{ textAlign:'right' }}>Recaudado</th></tr></thead>
-            <tbody>
-              {filtEmpStats.map((e, i) => {
-                const isTopEmployee = i === 0 && filtEmpStats.length > 1;
-                return (
-                  <tr key={e.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
-                    <td>
-                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <Avatar name={e.name} color={e.color} size="sm" />
-                        <b style={F13}>{e.name}</b>
-                        {isTopEmployee && (
-                          <span style={{ fontSize: 16 }}>⭐</span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ ...C, textAlign:'right' }}>{e.mesas}</td>
-                    <td style={{ ...F13, fontWeight:700, textAlign:'right', color:'var(--green)' }}>{COP(e.recaudado)}</td>
-                  </tr>
-                );
-              })}
-              {filtEmpStats.length === 0 && (
-                <tr><td colSpan={3} style={{ textAlign:'center', ...C, padding:20 }}>Sin datos de empleados</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ─── 9. TURN DETAIL ───────────────────────────── */}
-        {shiftRows.length > 0 && (
-          <div className="card" style={{ marginBottom:16 }}>
-            <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--line)' }}>
-              <span style={{ fontSize:14, fontWeight:800 }}>Detalle de mesas por turno</span>
+              {empStats.map(e => (
+                <button
+                  key={e.id}
+                  className={'fchip' + (empFilter === e.id ? ' on' : '')}
+                  style={empFilter === e.id ? { background:e.color, borderColor:e.color, color:'#0b0a12' } : {
+                    borderColor: e.color,
+                    color: e.color
+                  }}
+                  onClick={() => setEmpFilter(empFilter === e.id ? 'all' : e.id)}
+                >
+                  {e.name}
+                </button>
+              ))}
             </div>
             <table className="tbl">
-              <thead><tr><th>Turno</th><th style={{ textAlign:'right' }}>Mesas</th><th style={{ textAlign:'right' }}>Total</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>EMPLEADO</th>
+                  <th style={{ textAlign:'right' }}>MESAS</th>
+                  <th style={{ textAlign:'right' }}>RECAUDADO ▼</th>
+                </tr>
+              </thead>
               <tbody>
-                {shiftRows.map((s, i) => {
-                  const isTopShift = i === 0 && shiftRows.length > 1;
+                {filtEmpStats.map((e, i) => {
+                  const isTopEmployee = i === 0 && filtEmpStats.length > 1;
                   return (
-                    <tr key={s.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
-                      <td style={{
-                        ...F13,
-                        maxWidth: 360,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontWeight: isTopShift ? 700 : 400,
-                      }}>
-                        {isTopShift && <span style={{ fontSize: 16 }}>🏆</span>}
-                        {s.label}
+                    <tr key={e.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                      <td>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <Avatar name={e.name} color={e.color} size="sm" />
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{e.name}</div>
+                            {isTopEmployee && (
+                              <div style={{ fontSize: 11, color: 'var(--yellow)', marginTop: 2 }}>⭐ Top empleado</div>
+                            )}
+                          </div>
+                        </div>
                       </td>
-                      <td style={{ ...C, textAlign:'right' }}>{s.mesas}</td>
-                      <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COP(s.total)}</td>
+                      <td style={{ textAlign:'right', fontSize: 13 }}>{e.mesas}</td>
+                      <td style={{ textAlign:'right', fontSize: 13, fontWeight:700, color:'var(--green)' }}>{COP(e.recaudado)}</td>
                     </tr>
                   );
                 })}
+                {filtEmpStats.length === 0 && (
+                  <tr><td colSpan={3} style={{ textAlign:'center', ...C, padding:20 }}>Sin datos de empleados</td></tr>
+                )}
               </tbody>
             </table>
           </div>
-        )}
+
+          {/* Detalle de mesas por turno */}
+          <div className="card" style={{ padding:20 }}>
+            <span style={{ fontSize:14, fontWeight:800, display:'block', marginBottom:14 }}>Detalle de mesas por turno</span>
+            <table className="tbl" style={{ marginTop: 48 }}>
+              <thead>
+                <tr>
+                  <th>TURNO ↑</th>
+                  <th style={{ textAlign:'right' }}>MESAS</th>
+                  <th style={{ textAlign:'right' }}>TOTAL ▼</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shiftRows.map((s, i) => {
+                  const isTopShift = i === 0 && shiftRows.length > 1;
+                  const [datePart, empAndTime] = s.label.split(' · ');
+                  return (
+                    <tr key={s.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {isTopShift && <span style={{ fontSize: 18 }}>🏆</span>}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{datePart}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{empAndTime}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ textAlign:'right', fontSize: 13 }}>{s.mesas}</td>
+                      <td style={{ textAlign:'right', fontSize: 13, fontWeight:700 }}>{COP(s.total)}</td>
+                    </tr>
+                  );
+                })}
+                {shiftRows.length === 0 && (
+                  <tr><td colSpan={3} style={{ textAlign:'center', ...C, padding:20 }}>Sin turnos en el período</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* ─── 10. ALERT BANNER ─────────────────────────── */}
         {totalRiesgo > 100000 && (
