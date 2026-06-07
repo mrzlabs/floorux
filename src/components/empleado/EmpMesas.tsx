@@ -1113,9 +1113,8 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
               maxWidth: 1200,
               maxHeight: '88vh',
               height: '88vh',
-              display: 'grid',
-              gridTemplateColumns: '1fr 380px',
-              gap: 0,
+              display: 'flex',
+              flexDirection: 'column',
               overflow: 'hidden',
               background: 'var(--panel)',
               borderRadius: 22,
@@ -1126,7 +1125,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
           >
             {/* Header del modal */}
             <div style={{
-              gridColumn: '1 / -1',
+              flexShrink: 0,
               height: 56,
               background: 'var(--panel2)',
               borderBottom: '1px solid var(--line)',
@@ -1141,7 +1140,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                   {selectedMesa.name} · {selectedMesa.alias}
                 </div>
               </div>
-              <button className="icon-btn" onClick={() => setSelectedMesa(null)}>
+              <button className="icon-btn" onClick={() => setSelectedMesa(null)} style={{ flexShrink: 0 }}>
                 <Icon name="close" s={20} />
               </button>
             </div>
@@ -1149,7 +1148,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             {/* Tabs mobile */}
             <div className="mobile-tabs" style={{
               display: 'none',
-              gridColumn: '1 / -1',
+              flexShrink: 0,
             }}>
               <button
                 className={mobileTab === 'catalogo' ? 'active' : ''}
@@ -1165,12 +1164,20 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
               </button>
             </div>
 
+            {/* Contenido: dos columnas */}
+            <div className="pos-content" style={{
+              flex: 1,
+              display: 'grid',
+              gridTemplateColumns: '1fr 360px',
+              overflow: 'hidden',
+            }}>
+
             {/* Columna izquierda: Catálogo */}
-            <div className="catalogo-column" style={{
+            <div className={`catalogo-column${mobileTab !== 'catalogo' ? ' tab-hidden' : ''}`} style={{
               borderRight: '1px solid var(--line)',
-              display: mobileTab === 'catalogo' ? 'flex' : 'none',
+              display: 'flex',
               flexDirection: 'column',
-              maxHeight: '88vh',
+              overflow: 'hidden',
               background: 'var(--bg2)',
             }}>
               {/* Barra de búsqueda */}
@@ -1330,10 +1337,11 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             </div>
 
             {/* Columna derecha: Consumo */}
-            <div className="consumo-column" style={{
-              display: mobileTab === 'consumo' ? 'flex' : 'none',
+            <div className={`consumo-column${mobileTab !== 'consumo' ? ' tab-hidden' : ''}`} style={{
+              borderLeft: '1px solid var(--line)',
+              display: 'flex',
               flexDirection: 'column',
-              maxHeight: '88vh',
+              overflow: 'hidden',
               background: 'var(--panel)',
             }}>
               {/* Header sticky */}
@@ -1572,6 +1580,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                   </>
                 )}
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -2150,14 +2159,15 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             height: 100vh !important;
             max-height: 100vh !important;
             border-radius: 0 !important;
+          }
+          .pos-content {
             grid-template-columns: 1fr !important;
           }
           .mobile-tabs {
             display: flex !important;
           }
-          .catalogo-column,
-          .consumo-column {
-            display: flex !important;
+          .tab-hidden {
+            display: none !important;
           }
           .product-card {
             padding: 10px !important;
