@@ -36,11 +36,14 @@ interface SidebarProps {
   returnPath?: string | null;
   brandLogo?: string | null;
   onBrandLogoUpload?: (file: File) => Promise<void>;
+  onBrandLogoClick?: () => void;
+  brandFallbackColor?: string;
+  brandFallbackInitials?: string;
   roleThumb?: RoleThumb;
   navFooter?: React.ReactNode;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, roleThumb, navFooter }: SidebarProps) {
+export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, onBrandLogoClick, brandFallbackColor, brandFallbackInitials, roleThumb, navFooter }: SidebarProps) {
   const pathname = usePathname();
   const [logoHover, setLogoHover] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -69,15 +72,30 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
       <div className="brand">
         <span
           className="brand-mark"
-          style={{ overflow: 'hidden', position: 'relative', cursor: onBrandLogoUpload ? 'pointer' : undefined }}
+          style={{
+            overflow: 'hidden', position: 'relative',
+            cursor: (onBrandLogoUpload || onBrandLogoClick) ? 'pointer' : undefined,
+          }}
           onMouseEnter={() => onBrandLogoUpload && setLogoHover(true)}
           onMouseLeave={() => setLogoHover(false)}
-          onClick={() => onBrandLogoUpload && fileRef.current?.click()}
+          onClick={() => {
+            if (onBrandLogoUpload) fileRef.current?.click();
+            else if (onBrandLogoClick) onBrandLogoClick();
+          }}
         >
           {uploading ? (
             <span className="live" style={{ fontSize: 11 }}><i /></span>
           ) : brandLogo ? (
             <img src={brandLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : brandFallbackInitials ? (
+            <span style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '100%', height: '100%', fontWeight: 800, fontSize: 13,
+              color: brandFallbackColor ?? 'var(--accent)',
+              background: (brandFallbackColor ?? 'var(--accent)') + '33',
+            }}>
+              {brandFallbackInitials}
+            </span>
           ) : (
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M5 19V8l7-4 7 4v11M9 19v-5h6v5" stroke="#0b0a12" strokeWidth="2" strokeLinejoin="round" />
