@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Icon } from '@/components/ui/Icon';
 import { Field } from '@/components/ui/Field';
@@ -9,21 +9,33 @@ import type { Message } from '@/types/db';
 
 const SUPER_ROOT_ID = '5be10432-07b3-42f9-9161-04c5b0880409';
 
+const PRIORIDAD_COLOR: Record<string, string> = {
+  urgente: 'var(--red)', alta: 'var(--orange)', normal: 'var(--muted)',
+};
+const STATUS_COLOR: Record<string, string> = {
+  abierto: 'var(--yellow)', en_atencion: 'var(--accent)', resuelto: 'var(--green)',
+};
+const STATUS_LABEL: Record<string, string> = {
+  abierto: 'Abierto', en_atencion: 'En atención', resuelto: 'Resuelto',
+};
+
 interface EmpSoporteProps {
   empleadoId: string;
 }
 
 export function EmpSoporte({ empleadoId }: EmpSoporteProps) {
   const toast = useToast();
-  const [tickets, setTickets] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [asunto, setAsunto] = useState('');
-  const [detalle, setDetalle] = useState('');
-  const [prioridad, setPrioridad] = useState<'Normal' | 'Alta' | 'Urgente'>('Normal');
+  const [body, setBody] = useState('');
+  const [prioridad, setPrioridad] = useState('normal');
+  const [sending, setSending] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
 
   const supabase = createClient();
 
   useEffect(() => {
-    loadTickets();
+    loadMessages();
 
     // Realtime para nuevos mensajes
     const channel = supabase
@@ -33,201 +45,174 @@ export function EmpSoporte({ empleadoId }: EmpSoporteProps) {
         schema: 'public',
         table: 'messages',
         filter: `sender_id=eq.${empleadoId}`,
-      }, () => loadTickets())
+      }, () => loadMessages())
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'messages',
         filter: `recipient_id=eq.${empleadoId}`,
-      }, () => loadTickets())
+      }, () => loadMessages())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [empleadoId]);
 
-  async function loadTickets() {
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  async function loadMessages() {
     const { data } = await supabase
       .from('messages')
       .select('*')
       .eq('ticket_type', 'soporte')
       .or(`sender_id.eq.${empleadoId},recipient_id.eq.${empleadoId}`)
-      .order('sent_at', { ascending: false });
-    setTickets((data ?? []) as Message[]);
+      .order('sent_at', { ascending: true });
+    setMessages((data ?? []) as Message[]);
   }
 
-  async function enviarTicket() {
-    if (!asunto.trim() || !detalle.trim()) {
-      toast('Completa asunto y detalle', 'alert');
-      return;
+  async function handleSend() {
+    if (!body.trim()) return;
+    setSending(true);
+
+    const isNewTicket = asunto.trim().length > 0;
+
+    if (isNewTicket) {
+      // Nueva solicitud
+      const { error } = await supabase.from('messages').insert({
+        ticket_type: 'soporte',
+        sender_id: empleadoId,
+        recipient_id: SUPER_ROOT_ID,
+        asunto: asunto.trim(),
+        body: body.trim(),
+        prioridad,
+        status: 'abierto',
+        sent_at: new Date().toISOString(),
+      });
+
+      if (!error) {
+        toast('Solicitud enviada al administrador', 'check');
+        setAsunto('');
+        setBody('');
+        setPrioridad('normal');
+      } else {
+        toast('No se pudo enviar', 'alert');
+      }
+    } else {
+      // Respuesta
+      const { error } = await supabase.from('messages').insert({
+        ticket_type: 'soporte',
+        sender_id: empleadoId,
+        recipient_id: SUPER_ROOT_ID,
+        body: body.trim(),
+        sent_at: new Date().toISOString(),
+      });
+
+      if (!error) {
+        setBody('');
+      } else {
+        toast('No se pudo enviar', 'alert');
+      }
     }
 
-    await supabase.from('messages').insert({
-      ticket_type: 'soporte',
-      sender_id: empleadoId,
-      recipient_id: SUPER_ROOT_ID,
-      asunto,
-      body: detalle,
-      prioridad,
-      status: 'abierto',
-      sent_at: new Date().toISOString(),
-    });
-
-    setAsunto('');
-    setDetalle('');
-    setPrioridad('Normal');
-    toast('Solicitud enviada al equipo de soporte', 'check');
-    loadTickets();
+    setSending(false);
   }
 
-  const ticketsEnviados = tickets.filter(t => t.sender_id === empleadoId);
+  const thread = [...messages].sort((a, b) => a.sent_at.localeCompare(b.sent_at));
+  const latestStatus = [...thread].reverse().find(m => m.status)?.status ?? null;
+  const isNewTicket = asunto.trim().length > 0;
+  const C = { fontSize: 13, color: 'var(--muted)' } as const;
 
   return (
-    <div>
-      <div className="card">
-        <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Icon name="chat" s={18} />
-          <span style={{ fontWeight: 800, fontSize: 16 }}>Enviar solicitud de soporte</span>
-        </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 16, alignItems: 'start' }}>
+      {/* Formulario */}
+      <div className="card" style={{ padding: 20 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 16 }}>
+          {thread.length > 0 ? 'Nueva solicitud o respuesta' : 'Contacta con el administrador'}
+        </h2>
 
-        <div style={{ padding: 20 }}>
-          <div style={{ marginBottom: 20 }}>
-            <Field label="Asunto">
-              <input
-                type="text"
-                placeholder="Ej: Problema con inventario, Error al cobrar..."
-                value={asunto}
-                onChange={e => setAsunto(e.target.value)}
-              />
-            </Field>
+        <Field label="Asunto (deja vacío para responder)">
+          <input className="inp" value={asunto} placeholder="Ej. Problema de inventario…"
+            onChange={e => setAsunto(e.target.value)} />
+        </Field>
 
-            <Field label="Detalle">
-              <textarea
-                placeholder="Describe tu problema o solicitud..."
-                value={detalle}
-                onChange={e => setDetalle(e.target.value)}
-                rows={4}
-                style={{ width: '100%', resize: 'vertical' }}
-              />
-            </Field>
+        {isNewTicket && (
+          <Field label="Prioridad">
+            <select className="sel" value={prioridad} onChange={e => setPrioridad(e.target.value)}>
+              <option value="normal">Normal</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </Field>
+        )}
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Prioridad</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  className={'fchip' + (prioridad === 'Normal' ? ' on' : '')}
-                  style={prioridad === 'Normal' ? { background: 'var(--accent2)', borderColor: 'var(--accent2)', color: '#fff' } : undefined}
-                  onClick={() => setPrioridad('Normal')}
-                >
-                  Normal
-                </button>
-                <button
-                  className={'fchip' + (prioridad === 'Alta' ? ' on' : '')}
-                  style={prioridad === 'Alta' ? { background: 'var(--yellow)', borderColor: 'var(--yellow)', color: '#000' } : undefined}
-                  onClick={() => setPrioridad('Alta')}
-                >
-                  Alta
-                </button>
-                <button
-                  className={'fchip' + (prioridad === 'Urgente' ? ' on' : '')}
-                  style={prioridad === 'Urgente' ? { background: 'var(--red)', borderColor: 'var(--red)', color: '#fff' } : undefined}
-                  onClick={() => setPrioridad('Urgente')}
-                >
-                  Urgente
-                </button>
-              </div>
-            </div>
+        <Field label={isNewTicket ? 'Detalle' : 'Mensaje'}>
+          <textarea className="inp" rows={6} value={body}
+            placeholder={thread.length > 0 ? 'Responde o abre nueva solicitud…' : 'Describe tu problema o consulta…'}
+            onChange={e => setBody(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) handleSend(); }}
+          />
+        </Field>
+        <p style={{ ...C, marginBottom: 10 }}>Ctrl+Enter para enviar</p>
 
-            <button className="btn primary" onClick={enviarTicket} style={{ width: '100%' }}>
-              <Icon name="send" s={16} /> Enviar solicitud
-            </button>
-          </div>
-        </div>
+        <button className="btn pri block" onClick={handleSend}
+          disabled={sending || !body.trim()}>
+          <Icon name="send" s={15} />
+          {isNewTicket ? 'Enviar solicitud' : 'Responder'}
+        </button>
       </div>
 
-      {/* Historial de tickets */}
-      {ticketsEnviados.length > 0 && (
-        <div className="card" style={{ marginTop: 20 }}>
-          <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', letterSpacing: '.06em' }}>
-              Tus solicitudes
-            </div>
-          </div>
-
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Asunto</th>
-                <th>Prioridad</th>
-                <th>Estado</th>
-                <th>Respuesta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ticketsEnviados.map(t => {
-                // Buscar respuesta del super_root
-                const respuesta = tickets.find(
-                  r => r.sender_id === SUPER_ROOT_ID &&
-                       r.recipient_id === empleadoId &&
-                       r.asunto === t.asunto &&
-                       new Date(r.sent_at) > new Date(t.sent_at)
-                );
-
-                return (
-                  <tr key={t.id}>
-                    <td className="muted" style={{ fontSize: 12 }}>
-                      {new Date(t.sent_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{t.asunto}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                        {t.body && t.body.length > 60 ? t.body.substring(0, 60) + '...' : t.body}
-                      </div>
-                    </td>
-                    <td>
-                      <Chip color={
-                        t.prioridad === 'Urgente' ? 'var(--red)' :
-                        t.prioridad === 'Alta' ? 'var(--yellow)' :
-                        'var(--accent2)'
-                      }>
-                        {t.prioridad}
-                      </Chip>
-                    </td>
-                    <td>
-                      <Chip color={
-                        t.status === 'abierto' ? 'var(--yellow)' :
-                        t.status === 'en_atencion' ? 'var(--blue)' :
-                        'var(--green)'
-                      }>
-                        {t.status === 'abierto' ? 'Abierto' :
-                         t.status === 'en_atencion' ? 'En atención' :
-                         'Resuelto'}
-                      </Chip>
-                    </td>
-                    <td>
-                      {respuesta ? (
-                        <div style={{ fontSize: 12, maxWidth: 300 }}>
-                          <div style={{ fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>
-                            <Icon name="check" s={14} style={{ display: 'inline', marginRight: 4 }} />
-                            Respondido
-                          </div>
-                          <div style={{ color: 'var(--muted)' }}>
-                            {respuesta.body && respuesta.body.length > 80
-                              ? respuesta.body.substring(0, 80) + '...'
-                              : respuesta.body}
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Hilo */}
+      <div className="card" style={{ padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800 }}>Conversación con Administrador</h2>
+          {latestStatus && (
+            <Chip color={STATUS_COLOR[latestStatus] ?? 'var(--muted)'}>
+              {STATUS_LABEL[latestStatus] ?? latestStatus}
+            </Chip>
+          )}
         </div>
-      )}
+
+        {thread.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <Icon name="chat" s={32} />
+            <p style={{ ...C, marginTop: 10 }}>
+              Aún no has enviado ninguna solicitud.<br />Usa el formulario para contactar al administrador.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 520, overflowY: 'auto', paddingRight: 4 }}>
+            {thread.map(m => {
+              const mine = m.sender_id === empleadoId;
+              return (
+                <div key={m.id} style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '82%', padding: '10px 14px', borderRadius: 12, fontSize: 13,
+                    background: mine ? 'var(--accent)' : 'var(--card)',
+                    color: mine ? '#fff' : 'var(--ink)',
+                  }}>
+                    {m.asunto && (
+                      <>
+                        <div style={{ fontWeight: 800, marginBottom: 5 }}>{m.asunto}</div>
+                        {m.prioridad && (
+                          <div style={{ marginBottom: 6 }}>
+                            <Chip color={PRIORIDAD_COLOR[m.prioridad] ?? 'var(--muted)'}>{m.prioridad}</Chip>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <div style={{ lineHeight: 1.5 }}>{m.body}</div>
+                    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 5, textAlign: 'right' }}>
+                      {new Date(m.sent_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={endRef} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
