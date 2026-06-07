@@ -1264,40 +1264,18 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                       }}
                       onClick={() => p.stock > 0 && addToCart(p)}
                     >
-                      {/* Overlay agotado */}
-                      {p.stock === 0 && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: 'var(--r-md)',
-                            fontSize: 13,
-                            fontWeight: 800,
-                            color: 'var(--red)',
-                            background: 'color-mix(in srgb, var(--red) 12%, transparent)',
-                            border: '1px solid var(--red)',
-                            pointerEvents: 'none',
-                            opacity: 0.6,
-                          }}
-                        >
-                          Agotado
-                        </div>
-                      )}
-
-                      {/* Badge stock */}
+                      {/* Badge stock o "Agotado" */}
                       <div
                         style={{
                           position: 'absolute',
                           top: 8,
                           right: 8,
-                          width: 24,
-                          height: 24,
-                          borderRadius: '50%',
-                          fontSize: 11,
+                          fontSize: p.stock === 0 ? 9 : 11,
                           fontWeight: 800,
+                          padding: p.stock === 0 ? '4px 8px' : '0',
+                          width: p.stock === 0 ? 'auto' : 24,
+                          height: 24,
+                          borderRadius: p.stock === 0 ? 99 : '50%',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1307,13 +1285,12 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                               : p.stock <= p.min_stock
                               ? '#f59e42'
                               : 'var(--panel3)',
-                          color:
-                            p.stock === 0 || p.stock <= p.min_stock
-                              ? '#fff'
-                              : 'var(--ink)',
+                          color: '#fff',
+                          textTransform: p.stock === 0 ? 'uppercase' : 'none',
+                          letterSpacing: p.stock === 0 ? '.06em' : 'normal',
                         }}
                       >
-                        {p.stock}
+                        {p.stock === 0 ? 'Agotado' : p.stock}
                       </div>
 
                       {/* Contenido */}
@@ -1321,7 +1298,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                         fontWeight: 700,
                         fontSize: 14,
                         marginBottom: 4,
-                        opacity: p.stock === 0 ? 0.4 : 1,
+                        opacity: p.stock === 0 ? 0.5 : 1,
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
@@ -1333,6 +1310,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                         fontSize: 11,
                         color: 'var(--muted)',
                         marginBottom: 6,
+                        opacity: p.stock === 0 ? 0.5 : 1,
                       }}>
                         {p.cat} · {p.unit}
                       </div>
@@ -1341,7 +1319,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                         fontWeight: 800,
                         color: 'var(--accent)',
                         textDecoration: p.stock === 0 ? 'line-through' : 'none',
-                        opacity: p.stock === 0 ? 0.4 : 1,
+                        opacity: p.stock === 0 ? 0.5 : 1,
                       }}>
                         {COP(p.price)}
                       </div>
@@ -1526,17 +1504,27 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                           </div>
 
                           {/* Info producto */}
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            flex: 1,
+                            minWidth: 0,
+                            display: 'flex',
+                            alignItems: 'baseline',
+                            gap: 8,
+                          }}>
                             <div style={{ fontWeight: 700, fontSize: 13 }}>
                               {item.name}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                               {COP(item.price)} c/u
                             </div>
                           </div>
 
                           {/* Total */}
-                          <div style={{ fontWeight: 800, fontSize: 14 }}>
+                          <div style={{
+                            fontWeight: 800,
+                            fontSize: 14,
+                            whiteSpace: 'nowrap',
+                          }}>
                             {COP(item.price * item.qty)}
                           </div>
 
