@@ -3,12 +3,10 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Stat } from '@/components/ui/Stat';
 import { Icon } from '@/components/ui/Icon';
-import { Field } from '@/components/ui/Field';
-import { Chip } from '@/components/ui/Chip';
 import { useToast } from '@/components/ui/ToastContext';
 import { useRouter } from 'next/navigation';
 import { COP } from '@/lib/utils';
-import type { Shift, Sale, Message } from '@/types/db';
+import type { Shift, Sale } from '@/types/db';
 
 interface EmpTurnoProps {
   comercioId: string;
@@ -21,13 +19,6 @@ export function EmpTurno({ comercioId, empleadoId }: EmpTurnoProps) {
   const [shift, setShift] = useState<Shift | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
   const [mesasAbiertas, setMesasAbiertas] = useState(0);
-
-  // Soporte
-  const [tickets, setTickets] = useState<Message[]>([]);
-  const [asunto, setAsunto] = useState('');
-  const [detalle, setDetalle] = useState('');
-  const [prioridad, setPrioridad] = useState<'Normal' | 'Alta' | 'Urgente'>('Normal');
-  const [adminId, setAdminId] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -59,48 +50,6 @@ export function EmpTurno({ comercioId, empleadoId }: EmpTurnoProps) {
       .eq('comercio_id', comercioId)
       .eq('status', 'ocupada');
     setMesasAbiertas(count ?? 0);
-
-    // Cargar admin del comercio
-    const { data: admin } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('role', 'admin')
-      .eq('comercio_id', comercioId)
-      .limit(1)
-      .single();
-    setAdminId(admin?.id ?? null);
-
-    // Cargar tickets de soporte
-    loadTickets();
-  }
-
-  async function loadTickets() {
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('ticket_type', 'soporte')
-      .or(`sender_id.eq.${empleadoId},recipient_id.eq.${empleadoId}`)
-      .order('sent_at', { ascending: false });
-    setTickets((data ?? []) as Message[]);
-
-    // Realtime para nuevos mensajes
-    const channel = supabase
-      .channel(`tickets-emp:${empleadoId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'messages',
-        filter: `sender_id=eq.${empleadoId}`,
-      }, () => loadTickets())
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'messages',
-        filter: `recipient_id=eq.${empleadoId}`,
-      }, () => loadTickets())
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }
 
   async function startShift() {
@@ -142,41 +91,10 @@ export function EmpTurno({ comercioId, empleadoId }: EmpTurnoProps) {
     toast('Turno cerrado', 'check');
   }
 
-  async function enviarTicket() {
-    if (!asunto.trim() || !detalle.trim()) {
-      toast('Completa asunto y detalle', 'alert');
-      return;
-    }
-    if (!adminId) {
-      toast('No se encontró un admin para este comercio', 'alert');
-      return;
-    }
-
-    await supabase.from('messages').insert({
-      ticket_type: 'soporte',
-      sender_id: empleadoId,
-      recipient_id: adminId,
-      asunto,
-      body: detalle,
-      prioridad,
-      status: 'abierto',
-      sent_at: new Date().toISOString(),
-    });
-
-    setAsunto('');
-    setDetalle('');
-    setPrioridad('Normal');
-    toast('Solicitud enviada al administrador', 'check');
-    loadTickets();
-  }
-
   const total = sales.reduce((s, v) => s + v.total, 0);
   const duration = shift ? Math.round((Date.now() - new Date(shift.started_at).getTime()) / 60000) : 0;
 
   const canCloseShift = mesasAbiertas === 0;
-
-  const ticketsEnviados = tickets.filter(t => t.sender_id === empleadoId);
-  const ticketsSinLeer = tickets.filter(t => t.recipient_id === empleadoId && !t.read_at).length;
 
   return (
     <div>
@@ -250,7 +168,7 @@ export function EmpTurno({ comercioId, empleadoId }: EmpTurnoProps) {
           </div>
 
           {sales.length > 0 && (
-            <div className="card" style={{ marginBottom: 24 }}>
+            <div className="card">
               <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)', fontWeight: 700, fontSize: 14 }}>
                 Mesas cobradas hoy
               </div>
@@ -278,127 +196,6 @@ export function EmpTurno({ comercioId, empleadoId }: EmpTurnoProps) {
           )}
         </div>
       )}
-
-      {/* SECCIÓN SOPORTE */}
-      <div className="card" style={{ marginTop: 24 }}>
-        <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Icon name="chat" s={18} />
-            <span style={{ fontWeight: 800, fontSize: 16 }}>Soporte</span>
-          </div>
-          {ticketsSinLeer > 0 && (
-            <Chip color="var(--red)">{ticketsSinLeer} sin leer</Chip>
-          )}
-        </div>
-
-        <div style={{ padding: 20 }}>
-          <div style={{ marginBottom: 20 }}>
-            <Field label="Asunto">
-              <input
-                type="text"
-                placeholder="Ej: Problema con inventario, Error al cobrar..."
-                value={asunto}
-                onChange={e => setAsunto(e.target.value)}
-              />
-            </Field>
-
-            <Field label="Detalle">
-              <textarea
-                placeholder="Describe tu problema o solicitud..."
-                value={detalle}
-                onChange={e => setDetalle(e.target.value)}
-                rows={4}
-                style={{ width: '100%', resize: 'vertical' }}
-              />
-            </Field>
-
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Prioridad</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  className={'fchip' + (prioridad === 'Normal' ? ' on' : '')}
-                  style={prioridad === 'Normal' ? { background: 'var(--accent2)', borderColor: 'var(--accent2)', color: '#fff' } : undefined}
-                  onClick={() => setPrioridad('Normal')}
-                >
-                  Normal
-                </button>
-                <button
-                  className={'fchip' + (prioridad === 'Alta' ? ' on' : '')}
-                  style={prioridad === 'Alta' ? { background: 'var(--yellow)', borderColor: 'var(--yellow)', color: '#000' } : undefined}
-                  onClick={() => setPrioridad('Alta')}
-                >
-                  Alta
-                </button>
-                <button
-                  className={'fchip' + (prioridad === 'Urgente' ? ' on' : '')}
-                  style={prioridad === 'Urgente' ? { background: 'var(--red)', borderColor: 'var(--red)', color: '#fff' } : undefined}
-                  onClick={() => setPrioridad('Urgente')}
-                >
-                  Urgente
-                </button>
-              </div>
-            </div>
-
-            <button className="btn primary" onClick={enviarTicket} style={{ width: '100%' }}>
-              <Icon name="send" s={16} /> Enviar solicitud
-            </button>
-          </div>
-
-          {/* Historial de tickets */}
-          {ticketsEnviados.length > 0 && (
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', color: 'var(--muted)', letterSpacing: '.06em' }}>
-                Tus solicitudes
-              </div>
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Asunto</th>
-                    <th>Prioridad</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ticketsEnviados.map(t => (
-                    <tr key={t.id}>
-                      <td className="muted" style={{ fontSize: 12 }}>
-                        {new Date(t.sent_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{t.asunto}</div>
-                        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                          {t.body && t.body.length > 60 ? t.body.substring(0, 60) + '...' : t.body}
-                        </div>
-                      </td>
-                      <td>
-                        <Chip color={
-                          t.prioridad === 'Urgente' ? 'var(--red)' :
-                          t.prioridad === 'Alta' ? 'var(--yellow)' :
-                          'var(--accent2)'
-                        }>
-                          {t.prioridad}
-                        </Chip>
-                      </td>
-                      <td>
-                        <Chip color={
-                          t.status === 'abierto' ? 'var(--yellow)' :
-                          t.status === 'en_atencion' ? 'var(--blue)' :
-                          'var(--green)'
-                        }>
-                          {t.status === 'abierto' ? 'Abierto' :
-                           t.status === 'en_atencion' ? 'En atención' :
-                           'Resuelto'}
-                        </Chip>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

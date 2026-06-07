@@ -47,23 +47,16 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'validation' }, { status: 400 });
 
   const { data: profile } = await admin.from('profiles')
-    .select('role, super_admin_id')
+    .select('role')
     .eq('id', user.id)
     .maybeSingle();
   if (!profile || profile.role === 'super_super_admin') {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  let recipientId: string | null = null;
-  if (profile.role === 'super_admin') {
-    const { data: sr } = await admin.from('profiles')
-      .select('id').eq('role', 'super_super_admin').limit(1).maybeSingle();
-    recipientId = sr?.id ?? null;
-  } else if (profile.role === 'admin' || profile.role === 'empleado') {
-    recipientId = profile.super_admin_id;
-  }
-
-  if (!recipientId) return NextResponse.json({ error: 'recipient_not_found' }, { status: 400 });
+  // Todos los tickets de soporte (super_admin, admin, empleado) van al super_root
+  const SUPER_ROOT_ID = '5be10432-07b3-42f9-9161-04c5b0880409';
+  const recipientId = SUPER_ROOT_ID;
 
   const { data, error } = await admin.from('messages').insert({
     sender_id: user.id,
