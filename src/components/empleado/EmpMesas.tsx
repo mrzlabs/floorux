@@ -1111,78 +1111,160 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             style={{
               width: '100%',
               maxWidth: 1200,
-              maxHeight: '90vh',
+              maxHeight: '88vh',
+              height: '88vh',
               display: 'grid',
-              gridTemplateColumns: '1.5fr 1fr',
+              gridTemplateColumns: '1fr 380px',
               gap: 0,
               overflow: 'hidden',
               background: 'var(--panel)',
+              borderRadius: 22,
               border: '1px solid var(--line2)',
               color: 'var(--ink)',
             }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Columna izquierda: Catálogo */}
-            <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', background: 'var(--panel)' }}>
-              <div style={{ padding: 20, borderBottom: '1px solid var(--line)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Icon name="table" s={18} />
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>
-                      {selectedMesa.name} · {selectedMesa.alias}
-                    </div>
-                  </div>
-                  <button className="icon-btn" onClick={() => setSelectedMesa(null)}>
-                    <Icon name="close" s={20} />
-                  </button>
+            {/* Header del modal */}
+            <div style={{
+              gridColumn: '1 / -1',
+              height: 56,
+              background: 'var(--panel2)',
+              borderBottom: '1px solid var(--line)',
+              padding: '0 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Icon name="table" s={18} />
+                <div style={{ fontSize: 18, fontWeight: 800 }}>
+                  {selectedMesa.name} · {selectedMesa.alias}
                 </div>
+              </div>
+              <button className="icon-btn" onClick={() => setSelectedMesa(null)}>
+                <Icon name="close" s={20} />
+              </button>
+            </div>
 
-                <Field label="">
-                  <div style={{ position: 'relative' }}>
-                    <Icon name="search" s={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
-                    <input
-                      className="inp"
-                      type="text"
-                      placeholder="Buscar producto..."
-                      value={q}
-                      onChange={e => setQ(e.target.value)}
-                      style={{ paddingLeft: 36 }}
-                    />
-                  </div>
-                </Field>
+            {/* Tabs mobile */}
+            <div className="mobile-tabs" style={{
+              display: 'none',
+              gridColumn: '1 / -1',
+            }}>
+              <button
+                className={mobileTab === 'catalogo' ? 'active' : ''}
+                onClick={() => setMobileTab('catalogo')}
+              >
+                Catálogo
+              </button>
+              <button
+                className={mobileTab === 'consumo' ? 'active' : ''}
+                onClick={() => setMobileTab('consumo')}
+              >
+                Consumo ({selectedMesa.items.reduce((s, i) => s + i.qty, 0)})
+              </button>
+            </div>
 
-                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                  {cats.map(c => (
-                    <button
-                      key={c}
-                      className={'fchip' + (cat === c ? ' on' : '')}
-                      style={cat === c ? {
-                        background: 'var(--accent2)',
-                        borderColor: 'var(--accent2)',
-                        color: '#fff',
-                      } : undefined}
-                      onClick={() => setCat(c)}
-                    >
-                      {c === 'all' ? 'Todas' : c}
-                    </button>
-                  ))}
+            {/* Columna izquierda: Catálogo */}
+            <div className="catalogo-column" style={{
+              borderRight: '1px solid var(--line)',
+              display: mobileTab === 'catalogo' ? 'flex' : 'none',
+              flexDirection: 'column',
+              maxHeight: '88vh',
+              background: 'var(--bg2)',
+            }}>
+              {/* Barra de búsqueda */}
+              <div style={{ padding: 14 }}>
+                <div style={{
+                  position: 'relative',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-md)',
+                  padding: '10px 14px',
+                }}>
+                  <Icon
+                    name="search"
+                    s={16}
+                    style={{
+                      position: 'absolute',
+                      left: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--muted)',
+                    }}
+                  />
+                  <input
+                    className="inp"
+                    type="text"
+                    placeholder="Buscar producto..."
+                    value={q}
+                    onChange={e => setQ(e.target.value)}
+                    style={{
+                      paddingLeft: 36,
+                      border: 'none',
+                      background: 'transparent',
+                      width: '100%',
+                    }}
+                  />
                 </div>
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              {/* Chips de categoría */}
+              <div style={{
+                display: 'flex',
+                gap: 8,
+                padding: '0 14px 12px',
+                overflowX: 'auto',
+              }}>
+                {cats.map(c => (
+                  <button
+                    key={c}
+                    className={'cat-chip' + (cat === c ? ' active' : '')}
+                    style={{
+                      height: 32,
+                      padding: '0 16px',
+                      borderRadius: 'var(--r-md)',
+                      fontSize: 13,
+                      fontWeight: cat === c ? 700 : 600,
+                      background: cat === c ? 'var(--accent)' : 'var(--panel)',
+                      border: cat === c ? 'none' : '1px solid var(--line)',
+                      color: cat === c ? '#fff' : 'var(--muted)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => setCat(c)}
+                  >
+                    {c === 'all' ? 'Todas' : c}
+                  </button>
+                ))}
+              </div>
+
+              {/* Grid de productos */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '0 14px 14px' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 10,
+                }}>
                   {prodsFiltrados.map(p => (
                     <div
                       key={p.id}
-                      className="card"
+                      data-product-id={p.id}
+                      className="product-card"
                       style={{
+                        background: p.stock === 0
+                          ? 'color-mix(in srgb, var(--red) 5%, var(--panel))'
+                          : 'var(--panel)',
+                        border: '1px solid var(--line)',
+                        borderRadius: 'var(--r-md)',
                         padding: 12,
                         cursor: p.stock > 0 ? 'pointer' : 'not-allowed',
                         position: 'relative',
-                        background: p.stock === 0 ? 'color-mix(in srgb, var(--red) 5%, var(--panel))' : 'var(--panel)',
                       }}
                       onClick={() => p.stock > 0 && addToCart(p)}
                     >
+                      {/* Overlay agotado */}
                       {p.stock === 0 && (
                         <div
                           style={{
@@ -1191,10 +1273,14 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            borderRadius: 12,
+                            borderRadius: 'var(--r-md)',
                             fontSize: 13,
-                            fontWeight: 700,
+                            fontWeight: 800,
                             color: 'var(--red)',
+                            background: 'color-mix(in srgb, var(--red) 12%, transparent)',
+                            border: '1px solid var(--red)',
+                            pointerEvents: 'none',
+                            opacity: 0.6,
                           }}
                         >
                           Agotado
@@ -1207,26 +1293,47 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                           position: 'absolute',
                           top: 8,
                           right: 8,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: '4px 8px',
-                          borderRadius: 999,
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           background:
                             p.stock === 0
                               ? 'var(--red)'
                               : p.stock <= p.min_stock
-                              ? 'var(--yellow)'
-                              : 'var(--muted2)',
-                          color: '#fff',
+                              ? '#f59e42'
+                              : 'var(--panel3)',
+                          color:
+                            p.stock === 0 || p.stock <= p.min_stock
+                              ? '#fff'
+                              : 'var(--ink)',
                         }}
                       >
                         {p.stock}
                       </div>
 
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4, opacity: p.stock === 0 ? 0.4 : 1 }}>
+                      {/* Contenido */}
+                      <div style={{
+                        fontWeight: 700,
+                        fontSize: 14,
+                        marginBottom: 4,
+                        opacity: p.stock === 0 ? 0.4 : 1,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}>
                         {p.name}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
+                      <div style={{
+                        fontSize: 11,
+                        color: 'var(--muted)',
+                        marginBottom: 6,
+                      }}>
                         {p.cat} · {p.unit}
                       </div>
                       <div style={{
@@ -1245,49 +1352,110 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
             </div>
 
             {/* Columna derecha: Consumo */}
-            <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+            <div className="consumo-column" style={{
+              display: mobileTab === 'consumo' ? 'flex' : 'none',
+              flexDirection: 'column',
+              maxHeight: '88vh',
+              background: 'var(--panel)',
+            }}>
               {/* Header sticky */}
               <div
                 style={{
-                  padding: 20,
-                  borderBottom: '1px solid var(--line)',
                   position: 'sticky',
                   top: 0,
                   background: 'var(--panel)',
+                  borderBottom: '1px solid var(--line)',
+                  padding: '16px 20px',
                   zIndex: 10,
                 }}
               >
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+                  <div style={{
+                    fontSize: 10,
+                    color: 'var(--muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '.06em',
+                    marginBottom: 6,
+                  }}>
                     CONSUMO
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+                  <div style={{
+                    fontSize: 12,
+                    color: 'var(--muted)',
+                    marginBottom: 10,
+                  }}>
                     {selectedMesa.items.reduce((s, i) => s + i.qty, 0)} ítems
                   </div>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--accent)', marginBottom: 16 }}>
+                  <div className={totalFlash ? 'total-flash' : ''} style={{
+                    fontSize: 28,
+                    fontWeight: 900,
+                    color: 'var(--accent)',
+                    letterSpacing: '-0.03em',
+                    marginBottom: 16,
+                  }}>
                     {COP(selectedMesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
                   </div>
                 </div>
 
                 <button
                   className="btn primary"
-                  style={{ width: '100%', padding: '14px 16px', fontSize: 15, fontWeight: 700, background: 'var(--accent)', borderColor: 'var(--accent)' }}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    background: 'var(--accent)',
+                    borderColor: 'var(--accent)',
+                    color: '#fff',
+                    height: 48,
+                    borderRadius: 'var(--r-md)',
+                  }}
                   disabled={selectedMesa.items.length === 0}
                   onClick={() => setShowingCobro(true)}
                 >
                   Cerrar mesa y cobrar
                 </button>
+
+                {/* Botón cancelar mesa (solo admin) */}
+                {isAdmin && (
+                  <button
+                    className="btn"
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      marginTop: 8,
+                      color: 'var(--red)',
+                      borderColor: 'var(--red)',
+                      height: 44,
+                      borderRadius: 'var(--r-md)',
+                    }}
+                    disabled={selectedMesa.items.length === 0}
+                    onClick={() => setShowCancelarNota(true)}
+                  >
+                    Cancelar mesa sin cobro
+                  </button>
+                )}
               </div>
 
               {/* Lista de ítems */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
                 {selectedMesa.items.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: 40,
+                    color: 'var(--muted)',
+                  }}>
                     Agrega productos al consumo
                   </div>
                 ) : (
                   <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                    }}>
                       {selectedMesa.items.map((item, idx) => (
                         <div
                           key={idx}
@@ -1297,36 +1465,122 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
                             display: 'flex',
                             alignItems: 'center',
                             gap: 10,
+                            borderBottom: '1px solid var(--line)',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 16, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
+                          {/* Solo admin tiene botón [-] */}
+                          {isAdmin && (
+                            <button
+                              className="icon-btn sm"
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                background: 'var(--panel2)',
+                                border: '1px solid var(--line)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => {
+                                setReduceItem(item);
+                                setShowReduceNota(true);
+                              }}
+                            >
+                              <Icon name="minus" s={14} />
+                            </button>
+                          )}
+
+                          {/* Cantidad */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}>
+                            <span style={{
+                              fontSize: 20,
+                              fontWeight: 700,
+                              minWidth: 28,
+                              textAlign: 'center',
+                            }}>
                               {item.qty}×
                             </span>
                             <button
                               className="icon-btn sm"
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                background: 'var(--panel2)',
+                                border: '1px solid var(--line)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                              }}
                               onClick={() => updateItemQty(item, 1)}
                             >
                               <Icon name="plus" s={14} />
                             </button>
                           </div>
 
+                          {/* Info producto */}
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>
+                              {item.name}
+                            </div>
                             <div style={{ fontSize: 11, color: 'var(--muted)' }}>
                               {COP(item.price)} c/u
                             </div>
                           </div>
 
+                          {/* Total */}
                           <div style={{ fontWeight: 800, fontSize: 14 }}>
                             {COP(item.price * item.qty)}
                           </div>
+
+                          {/* Solo admin tiene botón [X] */}
+                          {isAdmin && (
+                            <button
+                              className="icon-btn sm"
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                background: 'transparent',
+                                border: '1px solid var(--line)',
+                                color: 'var(--red)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => {
+                                setSelectedItem(item);
+                                setShowRemoveNota(true);
+                              }}
+                            >
+                              <Icon name="close" s={14} />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
-                    <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12, textAlign: 'center' }}>
-                      ¿Agregaste algo por error? Contacta al administrador para que lo retire.
-                    </p>
+
+                    {/* Solo empleados ven mensaje de contactar admin */}
+                    {!isAdmin && (
+                      <p style={{
+                        fontSize: 12,
+                        color: 'var(--muted)',
+                        marginTop: 12,
+                        textAlign: 'center',
+                        padding: '12px 0',
+                        borderTop: '1px solid var(--line)',
+                      }}>
+                        ¿Agregaste algo por error? Avisa al administrador.
+                      </p>
+                    )}
                   </>
                 )}
               </div>
