@@ -16,6 +16,14 @@ interface NavItem {
   badge?: number;
 }
 
+export interface RoleThumb {
+  src?: string | null;
+  color: string;
+  initials: string;
+  label: string;
+  bizIdx?: number;
+}
+
 interface SidebarProps {
   profile: Profile;
   navItems: NavItem[];
@@ -28,9 +36,10 @@ interface SidebarProps {
   returnPath?: string | null;
   brandLogo?: string | null;
   onBrandLogoUpload?: (file: File) => Promise<void>;
+  roleThumb?: RoleThumb;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload }: SidebarProps) {
+export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, roleThumb }: SidebarProps) {
   const pathname = usePathname();
   const [logoHover, setLogoHover] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -89,11 +98,32 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
         </div>
       </div>
 
+      {/* rolepick — rol normal o thumbnail de comercio rotante */}
       <div className="rolepick" aria-label="Rol actual">
-        <button className="on" type="button" disabled>
-          <Icon name={role.icon} />
-          {role.label}
-        </button>
+        {roleThumb ? (
+          <button className="on" type="button" disabled style={{ gap: 10, padding: '9px 12px' }}>
+            <span
+              key={roleThumb.bizIdx ?? 0}
+              style={{
+                width: 28, height: 28, borderRadius: 8, overflow: 'hidden', flex: 'none',
+                background: roleThumb.color + '33', color: roleThumb.color,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 800, animation: 'fade .4s',
+              }}
+            >
+              {roleThumb.src
+                ? <img src={roleThumb.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : roleThumb.initials
+              }
+            </span>
+            <span style={{ fontSize: 11 }}>{roleThumb.label}</span>
+          </button>
+        ) : (
+          <button className="on" type="button" disabled>
+            <Icon name={role.icon} />
+            {role.label}
+          </button>
+        )}
       </div>
 
       <nav className="nav">
@@ -108,7 +138,9 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
               onClick={onClose}
               style={active ? { color: accentColor } : undefined}
             >
-              <span style={active ? { color: accentColor, display: 'contents' } : { display: 'contents' }}><Icon name={item.icon} /></span>
+              <span style={active ? { color: accentColor, display: 'contents' } : { display: 'contents' }}>
+                <Icon name={item.icon} />
+              </span>
               <span>{item.label}</span>
               {item.badge != null && item.badge > 0 && <span className="ncount">{item.badge}</span>}
             </Link>
