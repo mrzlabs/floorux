@@ -8,6 +8,7 @@ import { getVisualConfig } from '@/components/shell/VisualTheme';
 import { useTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
+import { usePlanUsage } from '@/hooks/usePlanUsage';
 import { createClient } from '@/lib/supabase/client';
 import type { Profile, Comercio } from '@/types/db';
 
@@ -34,6 +35,7 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   const [comercios, setComercios] = useState<Pick<Comercio, 'id' | 'name' | 'color' | 'photo_url'>[]>([]);
   const [bizIdx, setBizIdx] = useState(0);
   const supportBadge = useSupportBadge(profile.id);
+  const planUsage = usePlanUsage(profile.id);
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -86,6 +88,36 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   const item = NAV.find(n => n.href === '/super/' + view || (view === 'comercios' && n.href === '/super')) ?? NAV[0];
   const nav = NAV.map(n => n.href === '/super/soporte' ? { ...n, badge: supportBadge } : n);
 
+  const { plan, comercios: usoCom, maxComercios, empleados: usoEmp, maxEmpleados } = planUsage;
+  const pctCom = maxComercios >= 999 ? 100 : Math.min(100, (usoCom / maxComercios) * 100);
+  const pctEmp = maxEmpleados >= 999 ? 100 : Math.min(100, (usoEmp / maxEmpleados) * 100);
+  const usageWidget = plan ? (
+    <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+      {[
+        { label: 'Comercios', uso: usoCom, max: maxComercios, pct: pctCom },
+        { label: 'Empleados', uso: usoEmp, max: maxEmpleados, pct: pctEmp },
+      ].map(({ label, uso, max, pct }) => (
+        <div key={label} style={{ marginBottom: 7 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span>{label}</span>
+            <span style={{ color: pct >= 100 ? 'var(--red)' : 'var(--muted)' }}>
+              {uso} / {max >= 999 ? '∞' : max}
+            </span>
+          </div>
+          <div style={{ height: 4, borderRadius: 2, background: 'var(--border)' }}>
+            <div style={{
+              height: '100%', borderRadius: 2,
+              width: max >= 999 ? '100%' : `${pct}%`,
+              background: pct >= 100 ? 'var(--red)' : pct > 80 ? 'var(--orange)' : 'var(--accent)',
+              opacity: max >= 999 ? 0.2 : 1,
+              transition: 'width .3s',
+            }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
   return (
     <div className="app">
       <Sidebar
@@ -99,6 +131,7 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
         onClose={() => setSideOpen(false)}
         brandLogo={brandLogo || null}
         roleThumb={roleThumb}
+        navFooter={usageWidget}
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

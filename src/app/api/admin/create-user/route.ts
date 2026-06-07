@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { writeAuditLog } from '@/lib/audit';
+import { getLimites, limitError } from '@/lib/plan-limits';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -53,6 +54,25 @@ export async function POST(req: NextRequest) {
   }
   if (actor.role === 'super_admin' && role === 'super_admin') {
     return NextResponse.json({ error: 'forbidden_role' }, { status: 403 });
+  }
+
+  // Validar límite de empleados del plan (aplica a super_admin y admin)
+  if (role === 'empleado' && ['super_admin', 'admin'].includes(actor.role)) {
+    const superAdminIdForCheck = actor.role === 'super_admin' ? user.id : null;
+    if (superAdminIdForCheck || comercio_id) {
+      const [{ data: planRow }, { count: totalEmpleados }] = await Promise.all([
+        admin.from('comercios').select('plan').eq('super_admin_id', superAdminIdForCheck ?? '').limit(1).maybeSingle(),
+        admin.from('profiles').select('*', { count: 'exact', head: true })
+          .eq('role', 'empleado')
+          .eq('super_admin_id', superAdminIdForCheck ?? user.id),
+      ]);
+      const planActual = (planRow as { plan?: string } | null)?.plan ?? null;
+      const { empleados: maxEmpleados } = getLimites(planActual);
+      const msg = limitError('empleado', planActual ?? '', maxEmpleados);
+      if (msg && (totalEmpleados ?? 0) >= maxEmpleados) {
+        return NextResponse.json({ error: msg }, { status: 403 });
+      }
+    }
   }
   if (comercio_id) {
     const { data: comercio } = await admin

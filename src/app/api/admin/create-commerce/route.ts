@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { DEFAULT_CATALOG } from '@/lib/default-catalog';
 import { writeAuditLog } from '@/lib/audit';
+import { getLimites, limitError } from '@/lib/plan-limits';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -38,6 +39,20 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // Validar límite de comercios del plan solo para super_admin
+  if (actor.role === 'super_admin') {
+    const [{ data: planes }, { count: totalComercios }] = await Promise.all([
+      admin.from('comercios').select('plan').eq('super_admin_id', user.id).limit(1).maybeSingle(),
+      admin.from('comercios').select('*', { count: 'exact', head: true }).eq('super_admin_id', user.id),
+    ]);
+    const planActual = (planes as { plan?: string } | null)?.plan ?? null;
+    const { comercios: maxComercios } = getLimites(planActual);
+    const msg = limitError('comercio', planActual ?? '', maxComercios);
+    if (msg && (totalComercios ?? 0) >= maxComercios) {
+      return NextResponse.json({ error: msg }, { status: 403 });
+    }
+  }
   const now = new Date();
   const trialEnd = new Date(now);
   trialEnd.setDate(trialEnd.getDate() + 30);

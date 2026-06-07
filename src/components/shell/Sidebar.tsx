@@ -37,9 +37,10 @@ interface SidebarProps {
   brandLogo?: string | null;
   onBrandLogoUpload?: (file: File) => Promise<void>;
   roleThumb?: RoleThumb;
+  navFooter?: React.ReactNode;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, roleThumb }: SidebarProps) {
+export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, roleThumb, navFooter }: SidebarProps) {
   const pathname = usePathname();
   const [logoHover, setLogoHover] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -126,7 +127,7 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
         )}
       </div>
 
-      <nav className="nav">
+      <nav className="nav" style={{ flex: 1 }}>
         {navItems.map((item, index) => {
           const active = pathname.startsWith(item.href);
           const accentColor = PALETTE[index % 3];
@@ -147,6 +148,8 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
           );
         })}
       </nav>
+
+      {navFooter && <div style={{ padding: '0 12px 8px' }}>{navFooter}</div>}
 
       {/* shop footer — avatar clickeable solo para ver */}
       <div
