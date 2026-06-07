@@ -161,11 +161,21 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
 
   /* ── Payment methods ────────────────────────────────────── */
   const payMap = useMemo(() => {
-    const m: Record<string, number> = {};
-    sales.forEach(s => { m[s.payment_method] = (m[s.payment_method] ?? 0) + s.total; });
+    const m: Record<string, { total: number; count: number }> = {};
+    sales.forEach(s => {
+      if (!m[s.payment_method]) {
+        m[s.payment_method] = { total: 0, count: 0 };
+      }
+      m[s.payment_method].total += s.total;
+      m[s.payment_method].count += 1;
+    });
     return m;
   }, [sales]);
-  const payData  = PAYMENTS.map(p => ({ ...p, v: payMap[p.id] ?? 0 }));
+  const payData  = PAYMENTS.map(p => ({
+    ...p,
+    v: payMap[p.id]?.total ?? 0,
+    count: payMap[p.id]?.count ?? 0,
+  }));
   const payTotal = payData.reduce((a, p) => a + p.v, 0);
   const filtPay  = payFilter === 'all' ? payData : payData.filter(p => p.id === payFilter);
   const maxPay   = Math.max(...payData.map(p => p.v), 1);
@@ -266,14 +276,16 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
     document.getElementById(pid)?.remove();
 
     const hourBars = hourlyData.map(d => {
-      const h = d.h.h; const pct = Math.round(d.v / maxHourVal * 100);
-      const isPeak = d.v === peakHour.v && d.v > 0;
+      const h = d.h;
+      const pct = Math.round(d.v / maxHourVal * 100);
+      const rank = getHourRank(h, d.v);
+      const color = rank === 1 ? '#eab308' : rank === 2 ? '#7F77DD' : rank === 3 ? '#8b5cf6' : '#d1d5db';
       return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
-        <span style="font-size:9px;color:#666">${d.v > 0 ? '$'+Math.round(d.v/1000)+'K' : ''}</span>
+        <span style="font-size:9px;color:${rank ? '#7F77DD' : '#666'};font-weight:${rank ? 700 : 400}">${d.v > 0 ? '$'+Math.round(d.v/1000)+'K' : ''}</span>
         <div style="width:100%;background:#eee;border-radius:4px;overflow:hidden;height:80px;display:flex;align-items:flex-end">
-          <div style="width:100%;background:${isPeak?'#F5C400':'#7F77DD'};height:${pct}%;border-radius:4px 4px 0 0;min-height:2px"></div>
+          <div style="width:100%;background:${color};height:${pct}%;border-radius:4px 4px 0 0;min-height:2px"></div>
         </div>
-        <span style="font-size:9px;color:#999">${HOUR_LABELS[h]??''}</span>
+        <span style="font-size:9px;color:${rank ? '#7F77DD' : '#999'};font-weight:${rank ? 700 : 400}">${HOUR_LABELS[h]??''}</span>
       </div>`;
     }).join('');
 
@@ -794,7 +806,9 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
                     >
                       <td style={{ ...F13, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
                         {hasProblem && (
-                          <Icon name="alert" s={16} style={{ color:'var(--red)' }} />
+                          <span style={{ color:'var(--red)' }}>
+                            <Icon name="alert" s={16} />
+                          </span>
                         )}
                         {r.name}
                       </td>
