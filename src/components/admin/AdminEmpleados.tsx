@@ -13,8 +13,17 @@ import type { Profile, Shift } from '@/types/db';
 const TEMP_PASS = 'Temporal2026!';
 const PAGE_SIZE = 20;
 
-type EmpRow = Profile & { comercio_name: string };
+type EmpRow = Profile & { comercio_name: string; turnos: number };
 type ShiftRow = Shift & { emp_name: string; comercio_name: string; recaudo: number };
+
+interface SaleDetail {
+  id: string;
+  mesa_name: string;
+  mesa_alias: string | null;
+  total: number;
+  payment_method: string;
+  sale_items: Array<{ product_name: string; qty: number; unit_price: number }>;
+}
 
 /* ── Formatters ─────────────────────────────────────────── */
 function fmtLogin(ts: string | null): string {
@@ -53,8 +62,10 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
   const [comercioName, setComercioName] = useState('');
   const [shifts,       setShifts]       = useState<ShiftRow[]>([]);
   const [adding,       setAdding]       = useState(false);
-  const [expandedId,   setExpandedId]   = useState<string | null>(null);
-  const [form,         setForm]         = useState({ name: '', email: '', password: '' });
+  const [expandedId,      setExpandedId]      = useState<string | null>(null);
+  const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
+  const [shiftDetails,    setShiftDetails]    = useState<Record<string, SaleDetail[]>>({});
+  const [form,            setForm]            = useState({ name: '', email: '', password: '' });
 
   // Empleados filters
   const [search,       setSearch]       = useState('');
@@ -71,15 +82,24 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
   useEffect(() => { load(); }, [comercioId]);
 
   async function load() {
-    const [{ data: com }, { data: emps }, { data: rawShifts }] = await Promise.all([
+    const [{ data: com }, { data: emps }, { data: rawShifts }, { data: closedShifts }] = await Promise.all([
       supabase.from('comercios').select('name').eq('id', comercioId).single(),
       supabase.from('profiles').select('*').eq('comercio_id', comercioId).eq('role', 'empleado').order('full_name'),
       supabase.from('shifts').select('*').eq('comercio_id', comercioId).order('started_at', { ascending: false }).limit(100),
+      supabase.from('shifts').select('empleado_id').eq('comercio_id', comercioId).eq('status', 'closed'),
     ]);
 
     const name = (com as { name: string } | null)?.name ?? '';
     setComercioName(name);
-    const empRows = ((emps ?? []) as Profile[]).map(e => ({ ...e, comercio_name: name }));
+
+    const turnosByEmp: Record<string, number> = {};
+    (closedShifts ?? []).forEach((s: { empleado_id: string }) => {
+      turnosByEmp[s.empleado_id] = (turnosByEmp[s.empleado_id] ?? 0) + 1;
+    });
+
+    const empRows = ((emps ?? []) as Profile[]).map(e => ({
+      ...e, comercio_name: name, turnos: turnosByEmp[e.id] ?? 0,
+    }));
     setEmpleados(empRows);
 
     const shiftList = (rawShifts ?? []) as Shift[];
@@ -132,6 +152,15 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
     });
     if (!res.ok) { toast('No se pudo reiniciar la clave', 'alert'); return; }
     toast(`Clave temporal: ${TEMP_PASS} — pídele que la cambie`, 'check');
+  }
+
+  async function loadShiftDetail(shiftId: string) {
+    if (shiftDetails[shiftId]) return;
+    const { data } = await supabase
+      .from('sales')
+      .select('id, mesa_name, mesa_alias, total, payment_method, sale_items(product_name, qty, unit_price)')
+      .eq('shift_id', shiftId);
+    setShiftDetails(prev => ({ ...prev, [shiftId]: (data ?? []) as SaleDetail[] }));
   }
 
   /* ── Filtered data ──────────────────────────────────────── */
@@ -202,13 +231,14 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
                 <th>Comercio</th>
                 <th>Teléfono</th>
                 <th>Último login</th>
+                <th>Turnos</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filteredEmps.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 28, color: 'var(--muted)', fontSize: 13 }}>Sin empleados</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 28, color: 'var(--muted)', fontSize: 13 }}>Sin empleados</td></tr>
               )}
               {filteredEmps.map((e, i) => (
                 <React.Fragment key={e.id}>
@@ -219,6 +249,12 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
                     <td className="muted" style={{ fontSize: 13 }}>{e.comercio_name}</td>
                     <td className="muted" style={{ fontSize: 13 }}>{e.phone ?? '—'}</td>
                     <td className="muted" style={{ fontSize: 13 }}>{fmtLogin(e.last_login)}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: e.turnos > 0 ? 'var(--ink)' : 'var(--muted)', fontSize: 13 }}>
+                        <Icon name="clock" s={13} />
+                        <b>{e.turnos}</b>
+                      </div>
+                    </td>
                     <td><Chip color={e.activo ? 'var(--green)' : 'var(--muted)'}>{e.activo ? 'Activo' : 'Inactivo'}</Chip></td>
                     <td>
                       <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -236,7 +272,7 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
                   </tr>
                   {expandedId === e.id && (
                     <tr>
-                      <td colSpan={8} style={{ background: 'color-mix(in srgb, var(--accent) 6%, var(--panel2))', padding: '10px 20px' }}>
+                      <td colSpan={9} style={{ background: 'color-mix(in srgb, var(--accent) 6%, var(--panel2))', padding: '10px 20px' }}>
                         <div style={{ display: 'flex', gap: 24, fontSize: 13, color: 'var(--muted)', flexWrap: 'wrap', alignItems: 'center' }}>
                           <span><b style={{ color: 'var(--ink)' }}>Email:</b> {e.email}</span>
                           {e.phone && <span><b style={{ color: 'var(--ink)' }}>Tel:</b> {e.phone}</span>}
@@ -290,23 +326,106 @@ export function AdminEmpleados({ comercioId }: AdminEmpleadosProps) {
             </thead>
             <tbody>
               {pageShifts.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--muted)', fontSize: 13 }}>Sin turnos registrados</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 28, color: 'var(--muted)', fontSize: 13 }}>Sin turnos registrados</td></tr>
               )}
-              {pageShifts.map((s, i) => (
-                <tr key={s.id} style={row(i)}>
-                  <td><b style={{ fontSize: 13 }}>{s.emp_name}</b></td>
-                  <td className="muted" style={{ fontSize: 13 }}>{s.comercio_name}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{fmtDate(s.started_at)}</td>
-                  <td style={{ fontSize: 13 }}>{fmtTime(s.started_at)}</td>
-                  <td style={{ fontSize: 13 }}>
-                    {s.closed_at
-                      ? fmtTime(s.closed_at)
-                      : <Chip color="var(--green)">En curso</Chip>}
-                  </td>
-                  <td className="muted" style={{ fontSize: 13 }}>{fmtDuration(s.started_at, s.closed_at)}</td>
-                  <td style={{ fontSize: 13, fontWeight: 700, textAlign: 'right' }}>{COP(s.recaudo)}</td>
-                </tr>
-              ))}
+              {pageShifts.map((s, i) => {
+                const isOpen = expandedShiftId === s.id;
+                const detail = shiftDetails[s.id];
+                return (
+                  <React.Fragment key={s.id}>
+                    <tr style={{ ...row(i), cursor: 'pointer' }}
+                      onClick={() => {
+                        const next = isOpen ? null : s.id;
+                        setExpandedShiftId(next);
+                        if (next) loadShiftDetail(next);
+                      }}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ display: 'inline-flex', transform: isOpen ? 'rotate(90deg)' : 'none', transition: '.15s', color: 'var(--muted)' }}>
+                            <Icon name="chev" s={12} />
+                          </span>
+                          <b style={{ fontSize: 13 }}>{s.emp_name}</b>
+                        </div>
+                      </td>
+                      <td className="muted" style={{ fontSize: 13 }}>{s.comercio_name}</td>
+                      <td className="muted" style={{ fontSize: 13 }}>{fmtDate(s.started_at)}</td>
+                      <td style={{ fontSize: 13 }}>{fmtTime(s.started_at)}</td>
+                      <td style={{ fontSize: 13 }}>
+                        {s.closed_at ? fmtTime(s.closed_at) : <Chip color="var(--green)">En curso</Chip>}
+                      </td>
+                      <td className="muted" style={{ fontSize: 13 }}>{fmtDuration(s.started_at, s.closed_at)}</td>
+                      <td style={{ fontSize: 13, fontWeight: 700, textAlign: 'right' }}>{COP(s.recaudo)}</td>
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={8} style={{ background: 'color-mix(in srgb, var(--accent) 5%, var(--panel2))', padding: '14px 20px' }}>
+                          {!detail ? (
+                            <span className="muted" style={{ fontSize: 13 }}>Cargando…</span>
+                          ) : detail.length === 0 ? (
+                            <span className="muted" style={{ fontSize: 13 }}>Sin ventas registradas en este turno.</span>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                              {/* Resumen rápido */}
+                              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13 }}>
+                                <span>
+                                  <b>Mesas: </b>
+                                  <span className="muted">
+                                    {Array.from(new Set(detail.map(d => d.mesa_alias ?? d.mesa_name))).join(', ')}
+                                  </span>
+                                </span>
+                                <span>
+                                  <b>Métodos de pago: </b>
+                                  <span className="muted">
+                                    {Array.from(new Set(detail.map(d => d.payment_method))).join(', ')}
+                                  </span>
+                                </span>
+                                <span>
+                                  <b>Ventas: </b>
+                                  <span className="muted">{detail.length}</span>
+                                </span>
+                              </div>
+                              {/* Productos agregados */}
+                              {(() => {
+                                const prod: Record<string, { qty: number; price: number }> = {};
+                                detail.forEach(sale =>
+                                  sale.sale_items.forEach(it => {
+                                    if (!prod[it.product_name]) prod[it.product_name] = { qty: 0, price: it.unit_price };
+                                    prod[it.product_name].qty += it.qty;
+                                  })
+                                );
+                                const entries = Object.entries(prod).sort((a, b) => b[1].qty - a[1].qty);
+                                if (!entries.length) return null;
+                                return (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                    <thead>
+                                      <tr style={{ color: 'var(--muted2)' }}>
+                                        <th style={{ textAlign: 'left', paddingBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Producto</th>
+                                        <th style={{ textAlign: 'right', paddingBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Cant.</th>
+                                        <th style={{ textAlign: 'right', paddingBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>P. unit.</th>
+                                        <th style={{ textAlign: 'right', paddingBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Subtotal</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {entries.map(([name, { qty, price }]) => (
+                                        <tr key={name} style={{ borderTop: '1px solid var(--line)' }}>
+                                          <td style={{ padding: '5px 0', color: 'var(--ink)' }}>{name}</td>
+                                          <td style={{ textAlign: 'right', color: 'var(--muted)' }}>{qty}</td>
+                                          <td style={{ textAlign: 'right', color: 'var(--muted)' }}>{COP(price)}</td>
+                                          <td style={{ textAlign: 'right', fontWeight: 700 }}>{COP(qty * price)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
