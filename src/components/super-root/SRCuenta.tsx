@@ -59,6 +59,7 @@ export function SRCuenta({ profile }: SRCuentaProps) {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [showPhoto, setShowPhoto] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
@@ -122,10 +123,15 @@ export function SRCuenta({ profile }: SRCuentaProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
           {/* avatar con cámara */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <span className="avatar lg" style={{
-              background: theme.palette[0] + '26', color: theme.palette[0],
-              overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+            <span
+              className="avatar lg"
+              style={{
+                background: theme.palette[0] + '26', color: theme.palette[0],
+                overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: avatarUrl && !uploadingAvatar ? 'zoom-in' : undefined,
+              }}
+              onClick={() => avatarUrl && !uploadingAvatar && setShowPhoto(true)}
+            >
               {uploadingAvatar
                 ? <span className="live" style={{ fontSize: 11 }}><i /></span>
                 : avatarUrl
@@ -288,6 +294,31 @@ export function SRCuenta({ profile }: SRCuentaProps) {
       <button className="btn pri block" onClick={saveAll} disabled={saving} style={{ fontSize: 15, height: 48 }}>
         <Icon name="check" /> {saving ? 'Guardando…' : 'Guardar todos los cambios'}
       </button>
+
+      {/* ── Lightbox foto ── */}
+      {showPhoto && avatarUrl && (
+        <div
+          onClick={() => setShowPhoto(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'zoom-out',
+          }}
+        >
+          <img
+            src={avatarUrl}
+            alt="Foto de perfil"
+            style={{
+              maxWidth: '80vw', maxHeight: '80vh',
+              borderRadius: 16, objectFit: 'contain',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+            }}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
