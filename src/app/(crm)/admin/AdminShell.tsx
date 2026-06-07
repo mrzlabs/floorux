@@ -11,6 +11,7 @@ import type { Profile, Comercio } from '@/types/db';
 
 const TIPS: Record<string, string[]> = {
   resumen:    ['Tu noche va arriba.', 'Te marco en rojo lo que se está agotando.'],
+  mesas:      ['Gestiona mesas con permisos de admin y notas de auditoría.', 'Todas las acciones quedan registradas en audit_logs.'],
   reportes:   ['Descarga el PDF para enviarlo al dueño.'],
   inventario: ['Define la alerta mínima para que te avise.'],
   empleados:  ['Activa o desactiva un empleado al instante.'],
@@ -49,6 +50,7 @@ export function AdminShell({
 
   const nav = [
     { href: '/admin/resumen',    label: 'Resumen',    icon: 'dash',   title: 'Resumen del local',      sub: 'Noche en curso' },
+    { href: '/admin/mesas',      label: 'Mesas',      icon: 'mesas',  title: 'Gestión de mesas',       sub: 'Control admin con auditoría' },
     { href: '/admin/reportes',   label: 'Reportes',   icon: 'chart',  title: 'Reportes',               sub: 'Ventas diarias, semanales y mensuales' },
     { href: '/admin/inventario', label: 'Inventario', icon: 'box',    title: 'Inventario y conceptos', sub: 'Stock, ganancia y alertas', badge: lowStockCount },
     { href: '/admin/empleados',  label: 'Empleados',  icon: 'users',  title: 'Empleados',              sub: 'Equipo del local' },
