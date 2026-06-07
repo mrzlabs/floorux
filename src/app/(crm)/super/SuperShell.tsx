@@ -4,8 +4,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
 import { MayloDock } from '@/components/shell/MayloDock';
-import { getVisualConfig } from '@/components/shell/VisualTheme';
-import { useTheme } from '@/hooks/useTheme';
+import { applyFullTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
 import { usePlanUsage } from '@/hooks/usePlanUsage';
@@ -28,8 +27,10 @@ interface SuperShellProps {
 }
 
 export function SuperShell({ profile, view, children }: SuperShellProps) {
-  const _theme = getVisualConfig(profile.panel_theme, profile.color);
-  useTheme(_theme.mode, _theme.palette);
+  useEffect(() => {
+    applyFullTheme(profile.panel_theme as Record<string, unknown>, profile.color);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [brandLogo, setBrandLogo] = useState('');
   const [comercios, setComercios] = useState<Pick<Comercio, 'id' | 'name' | 'color' | 'photo_url'>[]>([]);
