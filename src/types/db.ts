@@ -150,13 +150,17 @@ export interface SaleItem {
 
 export interface Message {
   id: string;
-  comercio_id: string;
+  comercio_id: string | null;
   sender_id: string;
   recipient_id: string | null;
   body: string;
   read_at: string | null;
   sent_at: string;
   created_at: string;
+  ticket_type: string | null;
+  status: string | null;
+  asunto: string | null;
+  prioridad: string | null;
 }
 
 export interface AuditLog {

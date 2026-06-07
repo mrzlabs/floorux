@@ -7,6 +7,7 @@ import { MayloDock } from '@/components/shell/MayloDock';
 import { applyFullTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import { createClient } from '@/lib/supabase/client';
+import { useSupportBadge } from '@/hooks/useSupportBadge';
 import type { Profile } from '@/types/db';
 
 const NAV = [
@@ -32,6 +33,7 @@ export function SRShell({ profile, view, children }: SRShellProps) {
   const [brandLogo, setBrandLogo] = useState<string>(
     typeof pt.brandLogo === 'string' ? pt.brandLogo : ''
   );
+  const supportBadge = useSupportBadge(profile.id);
 
   useEffect(() => {
     applyFullTheme(pt, '#B57BE0');
@@ -59,13 +61,14 @@ export function SRShell({ profile, view, children }: SRShellProps) {
   }
 
   const item = NAV.find(n => n.href.includes(view)) ?? NAV[0];
+  const nav = NAV.map(n => n.href === '/super-root/soporte' ? { ...n, badge: supportBadge } : n);
 
   return (
     <div className="app sr-shell">
       <style>{`.sr-shell .nav-i{font-size:15px}.sr-shell .nav-i svg{width:20px;height:20px}`}</style>
       <Sidebar
         profile={profile}
-        navItems={NAV}
+        navItems={nav}
         shopName="OperUX · Sistema"
         shopSub="Super Root · Control total"
         shopColor={profile.color}

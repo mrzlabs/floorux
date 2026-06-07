@@ -29,7 +29,6 @@ export function SuperCuenta({ profile }: SuperCuentaProps) {
   const [photoUrl, setPhotoUrl] = useState(profile.avatar_url ?? '');
   const [comercios, setComercios] = useState<Comercio[]>([]);
   const [history, setHistory] = useState<SubscriptionHistory[]>([]);
-  const [ticket, setTicket] = useState({ subject: '', body: '', priority: 'normal' });
   const supabase = createClient();
 
   useEffect(() => {
@@ -81,17 +80,6 @@ export function SuperCuenta({ profile }: SuperCuentaProps) {
     await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', profile.id);
     setPhotoUrl(data.publicUrl);
     toast('Imagen actualizada', 'check');
-  }
-
-  async function sendSupport() {
-    const response = await fetch('/api/support', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ticket),
-    });
-    if (!response.ok) { toast('No se pudo enviar la solicitud', 'alert'); return; }
-    setTicket({ subject: '', body: '', priority: 'normal' });
-    toast('Solicitud enviada a Super Root', 'check');
   }
 
   return (
@@ -153,12 +141,10 @@ export function SuperCuenta({ profile }: SuperCuentaProps) {
           <h3 style={{ fontSize: 13, margin: '18px 0 8px' }}>Historial</h3>
           {history.slice(0, 10).map(h => <div className="hist-row" key={h.id}><div><b>{h.plan}</b><div className="muted" style={{ fontSize: 12 }}>{h.starts_at} → {h.ends_at ?? 'Sin fin'} · {h.status}</div></div></div>)}
         </div>
-        <div className="card" style={{ padding: 20 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 14 }}>Pedir soporte a Super Root</h2>
-          <Field label="Asunto"><input className="inp" value={ticket.subject} onChange={e => setTicket(t => ({ ...t, subject: e.target.value }))} /></Field>
-          <Field label="Detalle"><textarea className="inp" rows={5} value={ticket.body} onChange={e => setTicket(t => ({ ...t, body: e.target.value }))} /></Field>
-          <Field label="Prioridad"><select className="sel" value={ticket.priority} onChange={e => setTicket(t => ({ ...t, priority: e.target.value }))}><option value="low">Baja</option><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option></select></Field>
-          <button className="btn pri block" onClick={sendSupport} disabled={ticket.subject.length < 3 || ticket.body.length < 5}>Enviar solicitud</button>
+        <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <h2 style={{ fontSize: 16 }}>Soporte</h2>
+          <p className="muted" style={{ fontSize: 13 }}>Contacta directamente a Super Root para resolver dudas, reportar problemas o gestionar tu suscripción.</p>
+          <a href="/super/soporte" className="btn pri block"><Icon name="chat" s={15} /> Ir al canal de soporte</a>
         </div>
       </div>
     </div>

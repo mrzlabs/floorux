@@ -7,6 +7,7 @@ import { MayloDock } from '@/components/shell/MayloDock';
 import { getVisualConfig } from '@/components/shell/VisualTheme';
 import { useTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
+import { useSupportBadge } from '@/hooks/useSupportBadge';
 import { createClient } from '@/lib/supabase/client';
 import type { Profile, Comercio } from '@/types/db';
 
@@ -15,6 +16,7 @@ const NAV = [
   { href: '/super/reportes', label: 'Reportes', icon: 'chart', title: 'Reportes consolidados', sub: 'Toda la red en un vistazo' },
   { href: '/super/usuarios', label: 'Administradores', icon: 'users', title: 'Administradores', sub: 'Usuarios y logueos' },
   { href: '/super/chat', label: 'Chat', icon: 'chat', title: 'Chat', sub: 'Mensajes con tu equipo' },
+  { href: '/super/soporte', label: 'Soporte', icon: 'alert', title: 'Soporte', sub: 'Canal directo con Super Root' },
   { href: '/super/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil del super administrador' },
 ];
 
@@ -31,6 +33,7 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   const [brandLogo, setBrandLogo] = useState('');
   const [comercios, setComercios] = useState<Pick<Comercio, 'id' | 'name' | 'color' | 'photo_url'>[]>([]);
   const [bizIdx, setBizIdx] = useState(0);
+  const supportBadge = useSupportBadge(profile.id);
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -81,12 +84,13 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   } : undefined;
 
   const item = NAV.find(n => n.href === '/super/' + view || (view === 'comercios' && n.href === '/super')) ?? NAV[0];
+  const nav = NAV.map(n => n.href === '/super/soporte' ? { ...n, badge: supportBadge } : n);
 
   return (
     <div className="app">
       <Sidebar
         profile={profile}
-        navItems={NAV}
+        navItems={nav}
         shopName={profile.alias ?? profile.full_name}
         shopSub={`Super Admin · ${currentBiz?.name ?? profile.email}`}
         shopColor={profile.color}
