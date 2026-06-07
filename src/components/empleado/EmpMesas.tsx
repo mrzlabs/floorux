@@ -251,92 +251,35 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
   async function updateItemQty(item: CartItem, delta: number) {
     if (!selectedMesa) return;
+
+    // EMPLEADO: solo puede aumentar cantidad, NO reducir
+    if (delta < 0) {
+      toast('Contacta al administrador para reducir cantidades', 'alert');
+      return;
+    }
+
     const newQty = item.qty + delta;
 
     // Obtener producto actual para calcular nuevo stock
     const product = products.find(p => p.id === item.product_id);
     if (!product) return;
 
-    if (delta < 0) {
-      // Reduciendo cantidad: devolver al inventario
-      await supabase
-        .from('products')
-        .update({ stock: product.stock + 1 })
-        .eq('id', item.product_id);
-    } else {
-      // Aumentando cantidad: descontar del inventario
-      if (product.stock <= 0) {
-        toast('Producto agotado', 'alert');
-        return;
-      }
-      await supabase
-        .from('products')
-        .update({ stock: product.stock - 1 })
-        .eq('id', item.product_id)
-        .gt('stock', 0);
+    // Aumentando cantidad: descontar del inventario
+    if (product.stock <= 0) {
+      toast('Producto agotado', 'alert');
+      return;
     }
-
-    if (newQty <= 0) {
-      await supabase
-        .from('mesa_items')
-        .delete()
-        .eq('mesa_id', selectedMesa.id)
-        .eq('product_id', item.product_id);
-    } else {
-      await supabase
-        .from('mesa_items')
-        .update({ qty: newQty })
-        .eq('mesa_id', selectedMesa.id)
-        .eq('product_id', item.product_id);
-    }
-  }
-
-  async function removeItem(item: CartItem) {
-    if (!selectedMesa) return;
-
-    // Devolver stock completo al inventario
-    const product = products.find(p => p.id === item.product_id);
-    if (product) {
-      await supabase
-        .from('products')
-        .update({ stock: product.stock + item.qty })
-        .eq('id', item.product_id);
-    }
+    await supabase
+      .from('products')
+      .update({ stock: product.stock - 1 })
+      .eq('id', item.product_id)
+      .gt('stock', 0);
 
     await supabase
       .from('mesa_items')
-      .delete()
+      .update({ qty: newQty })
       .eq('mesa_id', selectedMesa.id)
       .eq('product_id', item.product_id);
-  }
-
-  async function cancelarMesa() {
-    if (!selectedMesa) return;
-
-    if (!confirm('¿Cerrar mesa sin cobrar? Se devolverá el inventario.')) return;
-
-    // Devolver todo el stock al inventario
-    for (const item of selectedMesa.items) {
-      const product = products.find(p => p.id === item.product_id);
-      if (product) {
-        await supabase
-          .from('products')
-          .update({ stock: product.stock + item.qty })
-          .eq('id', item.product_id);
-      }
-    }
-
-    // Eliminar items de la mesa
-    await supabase.from('mesa_items').delete().eq('mesa_id', selectedMesa.id);
-
-    // Liberar mesa
-    await supabase
-      .from('mesas')
-      .update({ status: 'libre', alias: null, opened_at: null, opened_by: null })
-      .eq('id', selectedMesa.id);
-
-    toast('Mesa cerrada y stock devuelto', 'check');
-    setSelectedMesa(null);
   }
 
   async function cobrarMesa() {
@@ -856,18 +799,9 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                       {selectedMesa.name} · {selectedMesa.alias}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      className="btn sm danger"
-                      onClick={cancelarMesa}
-                      title="Cerrar sin cobrar y devolver stock"
-                    >
-                      <Icon name="close" s={14} /> Cancelar mesa
-                    </button>
-                    <button className="icon-btn" onClick={() => setSelectedMesa(null)}>
-                      <Icon name="close" s={20} />
-                    </button>
-                  </div>
+                  <button className="icon-btn" onClick={() => setSelectedMesa(null)}>
+                    <Icon name="close" s={20} />
+                  </button>
                 </div>
 
                 <Field label="">
@@ -1019,61 +953,48 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                     Agrega productos al consumo
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {selectedMesa.items.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="card"
-                        style={{
-                          padding: 12,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            className="icon-btn sm"
-                            onClick={() => updateItemQty(item, -1)}
-                          >
-                            <Icon name="minus" s={14} />
-                          </button>
-                          <span style={{ fontSize: 16, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
-                            {item.qty}
-                          </span>
-                          <button
-                            className="icon-btn sm"
-                            onClick={() => updateItemQty(item, 1)}
-                          >
-                            <Icon name="plus" s={14} />
-                          </button>
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                            {COP(item.price)} c/u
-                          </div>
-                        </div>
-
-                        <div style={{ fontWeight: 800, fontSize: 14 }}>
-                          {COP(item.price * item.qty)}
-                        </div>
-
-                        <button
-                          className="icon-btn sm"
-                          style={{ background: 'var(--red)', borderColor: 'var(--red)', color: '#fff' }}
-                          onClick={() => {
-                            if (confirm(`¿Eliminar ${item.name}?`)) {
-                              removeItem(item);
-                            }
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {selectedMesa.items.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="card"
+                          style={{
+                            padding: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
                           }}
                         >
-                          <Icon name="close" s={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 16, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
+                              {item.qty}×
+                            </span>
+                            <button
+                              className="icon-btn sm"
+                              onClick={() => updateItemQty(item, 1)}
+                            >
+                              <Icon name="plus" s={14} />
+                            </button>
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                              {COP(item.price)} c/u
+                            </div>
+                          </div>
+
+                          <div style={{ fontWeight: 800, fontSize: 14 }}>
+                            {COP(item.price * item.qty)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12, textAlign: 'center' }}>
+                      ¿Agregaste algo por error? Contacta al administrador para que lo retire.
+                    </p>
+                  </>
                 )}
               </div>
             </div>
