@@ -1,12 +1,12 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { Field } from '@/components/ui/Field';
 import { Chip } from '@/components/ui/Chip';
 import { useToast } from '@/components/ui/ToastContext';
-import { COP, COPk } from '@/lib/utils';
+import { COP } from '@/lib/utils';
 import type { Mesa, Product, Shift } from '@/types/db';
 
 const PAYMENTS = [
@@ -16,17 +16,6 @@ const PAYMENTS = [
   { id: 'datafono', name: 'Datáfono', color: 'var(--accent2)' },
   { id: 'nequi', name: 'Nequi / Daviplata', color: 'var(--yellow)' },
 ];
-
-const CAT_COLORS: Record<string, string> = {
-  licor: 'var(--accent)',
-  bebida: 'var(--accent2)',
-  coctel: 'var(--accent3)',
-  'cóctel': 'var(--accent3)',
-  snack: 'var(--yellow)',
-  cigarro: 'var(--muted)',
-};
-
-const catColor = (c: string) => CAT_COLORS[c.toLowerCase()] ?? 'var(--accent2)';
 
 interface CartItem {
   product_id: string;
@@ -53,17 +42,29 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [shift, setShift] = useState<Shift | null>(null);
   const [filter, setFilter] = useState<'all' | 'abiertas' | 'libres'>('all');
-  const [selectedMesa, setSelectedMesa] = useState<LocalMesa | null>(null);
+
+  // Modal: Abrir mesa
   const [openingMesa, setOpeningMesa] = useState<LocalMesa | null>(null);
   const [alias, setAlias] = useState('');
+
+  // Modal: POS
+  const [selectedMesa, setSelectedMesa] = useState<LocalMesa | null>(null);
   const [cat, setCat] = useState('all');
   const [q, setQ] = useState('');
-  const [phase, setPhase] = useState<'order' | 'pay'>('order');
+
+  // Modal: Cobro
+  const [showingCobro, setShowingCobro] = useState(false);
   const [payment, setPayment] = useState<string | null>(null);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+
+  // Crear mesa
   const [creating, setCreating] = useState(false);
   const [newMesaName, setNewMesaName] = useState('');
+
+  // Drag & drop
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [mesaOrder, setMesaOrder] = useState<string[]>([]);
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -71,7 +72,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
     loadProducts();
     if (shiftId) loadShift();
 
-    // Realtime para mesas
     const mesasChannel = supabase
       .channel(`mesas-emp:${comercioId}`)
       .on('postgres_changes', {
@@ -82,7 +82,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       }, () => loadMesas())
       .subscribe();
 
-    // Realtime para mesa_items
     const itemsChannel = supabase
       .channel(`mesa-items-emp:${comercioId}`)
       .on('postgres_changes', {
@@ -98,7 +97,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
     };
   }, [comercioId, shiftId]);
 
-  // Restaurar orden de localStorage
   useEffect(() => {
     const savedOrder = localStorage.getItem(`mesa-order-${comercioId}`);
     if (savedOrder) {
@@ -168,6 +166,29 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       .eq('id', mesa.id);
     setOpeningMesa(null);
     setAlias('');
+
+    // Abrir directamente el modal POS
+    const { data } = await supabase
+      .from('mesas')
+      .select('*, mesa_items(*, products(*))')
+      .eq('id', mesa.id)
+      .single();
+
+    if (data) {
+      const mesaData = {
+        ...data,
+        items: (data.mesa_items || []).map((i: any) => ({
+          product_id: i.product_id,
+          name: i.products?.name ?? '',
+          price: i.unit_price,
+          cost: i.unit_cost,
+          qty: i.qty,
+          tracked: (i.products?.min_stock ?? 0) > 0,
+        })),
+      };
+      setSelectedMesa(mesaData);
+    }
+
     toast('Mesa abierta', 'check');
   }
 
@@ -197,10 +218,8 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       return;
     }
 
-    // Verificar si ya existe en cart
     const existing = selectedMesa.items.find(i => i.product_id === product.id);
     if (existing) {
-      // Incrementar qty
       const newQty = existing.qty + 1;
       await supabase
         .from('mesa_items')
@@ -208,7 +227,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
         .eq('mesa_id', selectedMesa.id)
         .eq('product_id', product.id);
     } else {
-      // Crear nuevo item
       await supabase.from('mesa_items').insert({
         mesa_id: selectedMesa.id,
         product_id: product.id,
@@ -247,19 +265,64 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
   }
 
   async function cobrarMesa() {
-    if (!selectedMesa || !payment || !shiftId) return;
+    if (!selectedMesa || !payment) {
+      toast('Selecciona un método de pago', 'alert');
+      return;
+    }
+
+    let currentShiftId = shiftId;
+
+    // Si no hay shift abierto, crear uno
+    if (!currentShiftId) {
+      const { data: newShift, error: shiftError } = await supabase
+        .from('shifts')
+        .insert({
+          comercio_id: comercioId,
+          empleado_id: empleadoId,
+          started_at: new Date().toISOString(),
+          status: 'open',
+        })
+        .select()
+        .single();
+
+      if (shiftError || !newShift) {
+        toast('Error al crear turno', 'alert');
+        return;
+      }
+      currentShiftId = newShift.id;
+    }
 
     const total = selectedMesa.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const cost = selectedMesa.items.reduce((sum, i) => sum + i.cost * i.qty, 0);
+
+    // Subir evidencia si hay
+    let evidenceUrl = null;
+    if (evidenceFile) {
+      const timestamp = Date.now();
+      const fileName = `${timestamp}.jpg`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('evidencias')
+        .upload(`sales/${comercioId}/${fileName}`, evidenceFile);
+
+      if (!uploadError && uploadData) {
+        evidenceUrl = uploadData.path;
+      }
+    }
 
     // Crear venta
     const { data: sale, error: saleError } = await supabase
       .from('sales')
       .insert({
         comercio_id: comercioId,
-        shift_id: shiftId,
+        shift_id: currentShiftId,
+        mesa_name: selectedMesa.name,
+        mesa_alias: selectedMesa.alias,
         payment_method: payment,
         total,
+        cost,
+        evidence: !!evidenceUrl,
         closed_at: new Date().toISOString(),
+        closed_by: empleadoId,
       })
       .select()
       .single();
@@ -273,6 +336,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
     const saleItems = selectedMesa.items.map(i => ({
       sale_id: sale.id,
       product_id: i.product_id,
+      product_name: i.name,
       qty: i.qty,
       unit_price: i.price,
       unit_cost: i.cost,
@@ -296,33 +360,17 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
     // Eliminar mesa_items
     await supabase.from('mesa_items').delete().eq('mesa_id', selectedMesa.id);
 
-    // Actualizar mesa a libre
+    // Liberar mesa
     await supabase
       .from('mesas')
       .update({ status: 'libre', alias: null, opened_at: null, opened_by: null })
       .eq('id', selectedMesa.id);
 
-    toast('Mesa cobrada', 'check');
+    toast('Mesa cobrada y liberada', 'check');
     setSelectedMesa(null);
-    setPhase('order');
+    setShowingCobro(false);
     setPayment(null);
-  }
-
-  async function cerrarSinCobrar() {
-    if (!selectedMesa) return;
-
-    // Eliminar mesa_items
-    await supabase.from('mesa_items').delete().eq('mesa_id', selectedMesa.id);
-
-    // Actualizar mesa a libre
-    await supabase
-      .from('mesas')
-      .update({ status: 'libre', alias: null, opened_at: null, opened_by: null })
-      .eq('id', selectedMesa.id);
-
-    toast('Mesa cerrada', 'check');
-    setSelectedMesa(null);
-    setPhase('order');
+    setEvidenceFile(null);
   }
 
   // Drag and drop
@@ -377,9 +425,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
   const totalAcumulado = mesasAbiertas.reduce((sum, m) =>
     sum + m.items.reduce((s, i) => s + i.price * i.qty, 0), 0
   );
-  const totalItems = mesasAbiertas.reduce((sum, m) =>
-    sum + m.items.reduce((s, i) => s + i.qty, 0), 0
-  );
 
   // Cronómetro del turno
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
@@ -409,30 +454,22 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
   return (
     <div>
-      {/* Header con barra de progreso */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, flex: 1 }}>Mesas</h1>
-          <Chip color="var(--green)">
-            <span className="live-dot">●</span> En vivo
-          </Chip>
-        </div>
-
-        {/* Barra de progreso */}
+      {/* Header venta de la noche */}
+      <div style={{ marginBottom: 20 }}>
         <div
           style={{
             background: 'var(--panel2)',
             borderRadius: 12,
-            padding: '14px 18px',
-            marginBottom: 8,
+            padding: '16px 20px',
+            marginBottom: 12,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
                 VENTA DE LA NOCHE
               </div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--accent)' }}>
+              <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--accent)' }}>
                 {COP(totalAcumulado)}
               </div>
             </div>
@@ -446,44 +483,51 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
             </div>
           </div>
 
-          {/* Barra de progreso visual */}
-          <div style={{ height: 8, background: 'var(--panel)', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${Math.min((totalAcumulado / 1000000) * 100, 100)}%`,
-                background: 'linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%)',
-                transition: 'width 0.3s ease',
-              }}
-            />
+          {/* Barra de progreso */}
+          <div style={{ height: 8, background: 'var(--panel)', borderRadius: 4, overflow: 'hidden', marginBottom: 10 }}>
+            {mesasAbiertas.map((mesa, idx) => {
+              const mesaTotal = mesa.items.reduce((s, i) => s + i.price * i.qty, 0);
+              const percentage = totalAcumulado > 0 ? (mesaTotal / totalAcumulado) * 100 : 0;
+              return (
+                <div
+                  key={mesa.id}
+                  style={{
+                    display: 'inline-block',
+                    height: '100%',
+                    width: `${percentage}%`,
+                    background: `linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%)`,
+                  }}
+                />
+              );
+            })}
           </div>
 
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-            {mesasAbiertas.length} cobradas · {mesasLibres.length} abiertas
+            {mesasAbiertas.length} abiertas · {mesasLibres.length} libres
           </div>
         </div>
       </div>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 6 }}>
           <button
             className={'fchip' + (filter === 'all' ? ' on' : '')}
-            style={filter === 'all' ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#0b0a12' } : undefined}
+            style={filter === 'all' ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' } : undefined}
             onClick={() => setFilter('all')}
           >
             Todas ({mesas.length})
           </button>
           <button
             className={'fchip' + (filter === 'abiertas' ? ' on' : '')}
-            style={filter === 'abiertas' ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#0b0a12' } : undefined}
+            style={filter === 'abiertas' ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' } : undefined}
             onClick={() => setFilter('abiertas')}
           >
             Abiertas ({mesasAbiertas.length})
           </button>
           <button
             className={'fchip' + (filter === 'libres' ? ' on' : '')}
-            style={filter === 'libres' ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#0b0a12' } : undefined}
+            style={filter === 'libres' ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' } : undefined}
             onClick={() => setFilter('libres')}
           >
             Libres ({mesasLibres.length})
@@ -498,10 +542,11 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
           gap: 14,
           marginBottom: 16,
         }}
+        className="mesa-grid"
       >
         {mesasOrdenadas.map(mesa => (
           <div
@@ -513,27 +558,21 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
             className="card"
             style={{
               padding: 16,
-              cursor: mesa.status === 'libre' ? 'pointer' : 'pointer',
-              background:
-                mesa.status === 'ocupada'
-                  ? 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--panel)) 0%, var(--panel) 100%)'
-                  : 'var(--panel)',
-              border:
-                mesa.status === 'ocupada'
-                  ? '2px solid var(--accent)'
-                  : '1px solid var(--line)',
-              boxShadow:
-                mesa.status === 'ocupada'
-                  ? '0 0 20px -8px var(--accent)'
-                  : undefined,
+              cursor: 'pointer',
+              background: mesa.status === 'ocupada'
+                ? 'color-mix(in srgb, var(--accent) 10%, var(--panel))'
+                : 'var(--panel)',
+              border: mesa.status === 'ocupada'
+                ? '2px solid var(--accent)'
+                : '1px solid var(--line)',
               position: 'relative',
+              minHeight: 180,
             }}
             onClick={() => {
               if (mesa.status === 'libre') {
                 setOpeningMesa(mesa);
               } else {
                 setSelectedMesa(mesa);
-                setPhase('order');
               }
             }}
           >
@@ -541,16 +580,13 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
             <div
               style={{
                 position: 'absolute',
-                top: 12,
-                right: 12,
+                top: 10,
+                right: 10,
                 fontSize: 9,
                 fontWeight: 700,
-                padding: '4px 8px',
+                padding: '4px 9px',
                 borderRadius: 999,
-                background:
-                  mesa.status === 'ocupada'
-                    ? 'var(--accent)'
-                    : 'var(--muted2)',
+                background: mesa.status === 'ocupada' ? 'var(--accent)' : 'var(--muted2)',
                 color: '#fff',
                 textTransform: 'uppercase',
                 letterSpacing: '.06em',
@@ -559,21 +595,30 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
               {mesa.status === 'ocupada' ? 'ABIERTA' : 'LIBRE'}
             </div>
 
-            {/* Nombre de la mesa */}
+            {/* Nombre */}
             <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>
               {mesa.name}
             </div>
 
             {mesa.status === 'ocupada' ? (
               <>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
                   {mesa.alias}
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--accent)', marginBottom: 6 }}>
                   {COP(mesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
-                  {mesa.items.reduce((s, i) => s + i.qty, 0)} ítems
+                  {(() => {
+                    if (!mesa.opened_at) return '· ' + mesa.items.reduce((s, i) => s + i.qty, 0) + ' ítems';
+                    const start = new Date(mesa.opened_at).getTime();
+                    const now = Date.now();
+                    const diff = now - start;
+                    const hours = Math.floor(diff / 3600000);
+                    const minutes = Math.floor((diff % 3600000) / 60000);
+                    const itemCount = mesa.items.reduce((s, i) => s + i.qty, 0);
+                    return `${hours}h ${minutes}m · ${itemCount} ítems`;
+                  })()}
                 </div>
 
                 {/* Chips de productos */}
@@ -587,11 +632,11 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                           fontWeight: 600,
                           padding: '3px 8px',
                           borderRadius: 999,
-                          background: 'var(--panel2)',
-                          color: 'var(--muted)',
+                          background: 'var(--accent2)',
+                          color: '#fff',
                         }}
                       >
-                        {item.qty}x {item.name}
+                        {item.name}
                       </span>
                     ))}
                     {mesa.items.length > 3 && (
@@ -612,9 +657,9 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                 )}
               </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--muted)' }}>
+              <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)' }}>
                 <Icon name="plus" s={32} />
-                <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600 }}>Abrir</div>
+                <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600 }}>Abrir</div>
               </div>
             )}
           </div>
@@ -636,8 +681,8 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
           }}
           onClick={() => setCreating(true)}
         >
-          <Icon name="plus" s={32} />
-          <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+          <Icon name="plus" s={32} color="var(--muted)" />
+          <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>
             Nueva mesa
           </div>
         </div>
@@ -645,11 +690,18 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
       {/* Modal: Abrir mesa */}
       {openingMesa && (
-        <Modal title={`Abrir ${openingMesa.name}`} onClose={() => setOpeningMesa(null)}>
-          <Field label="Alias del cliente">
+        <Modal title="" onClose={() => setOpeningMesa(null)}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <Icon name="table" s={20} />
+              <span style={{ fontSize: 18, fontWeight: 800 }}>Abrir {openingMesa.name}</span>
+            </div>
+          </div>
+
+          <Field label="Alias del cliente o grupo">
             <input
               type="text"
-              placeholder="Ej: Juan, Mesa 5, etc."
+              placeholder="Ej. Mesa del cumpleaños, Don Jorge..."
               value={alias}
               onChange={e => setAlias(e.target.value)}
               onKeyDown={e => {
@@ -657,8 +709,12 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
               }}
               autoFocus
             />
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              🤖 pondremos nombre a la cuenta para identificarla mientras está abierta.
+            </div>
           </Field>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
             <button className="btn" onClick={() => setOpeningMesa(null)} style={{ flex: 1 }}>
               Cancelar
             </button>
@@ -667,7 +723,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
               onClick={() => openMesa(openingMesa, alias)}
               style={{ flex: 1 }}
             >
-              Abrir mesa
+              <Icon name="play" s={14} /> Abrir mesa
             </button>
           </div>
         </Modal>
@@ -679,7 +735,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
           <Field label="Nombre de la mesa">
             <input
               type="text"
-              placeholder="Ej: Mesa 1, VIP, Terraza, etc."
+              placeholder="Ej: Mesa 1, VIP, Terraza..."
               value={newMesaName}
               onChange={e => setNewMesaName(e.target.value)}
               onKeyDown={e => {
@@ -700,13 +756,13 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       )}
 
       {/* Modal POS */}
-      {selectedMesa && phase === 'order' && (
+      {selectedMesa && !showingCobro && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 100,
-            background: 'rgba(0,0,0,0.7)',
+            background: 'rgba(0,0,0,0.75)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -715,7 +771,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
           onClick={() => setSelectedMesa(null)}
         >
           <div
-            className="card"
+            className="card pos-modal"
             style={{
               width: '100%',
               maxWidth: 1200,
@@ -727,11 +783,12 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
             }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Columna izquierda: Productos */}
+            {/* Columna izquierda: Catálogo */}
             <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
               <div style={{ padding: 20, borderBottom: '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Icon name="table" s={18} />
                     <div style={{ fontSize: 18, fontWeight: 800 }}>
                       {selectedMesa.name} · {selectedMesa.alias}
                     </div>
@@ -742,12 +799,16 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                 </div>
 
                 <Field label="">
-                  <input
-                    type="text"
-                    placeholder="Buscar producto..."
-                    value={q}
-                    onChange={e => setQ(e.target.value)}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <Icon name="search" s={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="text"
+                      placeholder="Buscar producto..."
+                      value={q}
+                      onChange={e => setQ(e.target.value)}
+                      style={{ paddingLeft: 36 }}
+                    />
+                  </div>
                 </Field>
 
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
@@ -756,8 +817,8 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                       key={c}
                       className={'fchip' + (cat === c ? ' on' : '')}
                       style={cat === c ? {
-                        background: catColor(c),
-                        borderColor: catColor(c),
+                        background: 'var(--accent2)',
+                        borderColor: 'var(--accent2)',
                         color: '#fff',
                       } : undefined}
                       onClick={() => setCat(c)}
@@ -777,8 +838,8 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                       style={{
                         padding: 12,
                         cursor: p.stock > 0 ? 'pointer' : 'not-allowed',
-                        opacity: p.stock === 0 ? 0.5 : 1,
                         position: 'relative',
+                        background: p.stock === 0 ? 'color-mix(in srgb, var(--red) 5%, var(--panel))' : 'var(--panel)',
                       }}
                       onClick={() => p.stock > 0 && addToCart(p)}
                     >
@@ -787,17 +848,16 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                           style={{
                             position: 'absolute',
                             inset: 0,
-                            background: 'rgba(0,0,0,0.6)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             borderRadius: 12,
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: 700,
-                            color: '#fff',
+                            color: 'var(--red)',
                           }}
                         >
-                          AGOTADO
+                          Agotado
                         </div>
                       )}
 
@@ -809,7 +869,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                           right: 8,
                           fontSize: 10,
                           fontWeight: 700,
-                          padding: '3px 8px',
+                          padding: '4px 8px',
                           borderRadius: 999,
                           background:
                             p.stock === 0
@@ -823,13 +883,19 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                         {p.stock}
                       </div>
 
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4, opacity: p.stock === 0 ? 0.4 : 1 }}>
                         {p.name}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
-                        {p.sub} · {p.unit}
+                        {p.cat} · {p.unit}
                       </div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>
+                      <div style={{
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: 'var(--accent)',
+                        textDecoration: p.stock === 0 ? 'line-through' : 'none',
+                        opacity: p.stock === 0 ? 0.4 : 1,
+                      }}>
                         {COP(p.price)}
                       </div>
                     </div>
@@ -840,7 +906,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
             {/* Columna derecha: Consumo */}
             <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-              {/* Header sticky con botones */}
+              {/* Header sticky */}
               <div
                 style={{
                   padding: 20,
@@ -852,44 +918,25 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                 }}
               >
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>CONSUMO</div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--accent)' }}>
-                    {COP(selectedMesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
+                  <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+                    CONSUMO
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
                     {selectedMesa.items.reduce((s, i) => s + i.qty, 0)} ítems
+                  </div>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--accent)', marginBottom: 16 }}>
+                    {COP(selectedMesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <button
-                    className="btn primary"
-                    style={{ width: '100%', padding: '12px 16px', fontSize: 14, fontWeight: 700 }}
-                    disabled={selectedMesa.items.length === 0}
-                    onClick={() => setPhase('pay')}
-                  >
-                    Cobrar mesa
-                  </button>
-                  <button
-                    className="btn"
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      background: 'var(--red)',
-                      borderColor: 'var(--red)',
-                      color: '#fff',
-                    }}
-                    onClick={() => {
-                      if (confirm('¿Cerrar sin cobrar?')) {
-                        cerrarSinCobrar();
-                      }
-                    }}
-                  >
-                    Cerrar sin cobrar
-                  </button>
-                </div>
+                <button
+                  className="btn primary"
+                  style={{ width: '100%', padding: '14px 16px', fontSize: 15, fontWeight: 700, background: 'var(--accent)', borderColor: 'var(--accent)' }}
+                  disabled={selectedMesa.items.length === 0}
+                  onClick={() => setShowingCobro(true)}
+                >
+                  Cerrar mesa y cobrar
+                </button>
               </div>
 
               {/* Lista de ítems */}
@@ -918,7 +965,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                           >
                             <Icon name="minus" s={14} />
                           </button>
-                          <span style={{ fontSize: 16, fontWeight: 700, minWidth: 24, textAlign: 'center' }}>
+                          <span style={{ fontSize: 16, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
                             {item.qty}
                           </span>
                           <button
@@ -962,54 +1009,45 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       )}
 
       {/* Modal de cobro */}
-      {selectedMesa && phase === 'pay' && (
-        <Modal
-          title="Cobrar mesa"
-          onClose={() => setPhase('order')}
-          wide
-        >
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Resumen del consumo</div>
-            <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-              {selectedMesa.items.map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '6px 0',
-                    borderBottom: idx < selectedMesa.items.length - 1 ? '1px solid var(--line)' : undefined,
-                  }}
-                >
-                  <span style={{ fontSize: 13 }}>
-                    {item.qty}x {item.name}
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>
-                    {COP(item.price * item.qty)}
-                  </span>
-                </div>
-              ))}
+      {selectedMesa && showingCobro && (
+        <Modal title="" onClose={() => setShowingCobro(false)} wide>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>
+              {selectedMesa.name} · {selectedMesa.alias}
             </div>
+          </div>
 
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>TOTAL A COBRAR</div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--accent)', marginBottom: 20 }}>
+          {/* Total a cobrar */}
+          <div className="card" style={{ padding: 20, textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
+              Total a cobrar
+            </div>
+            <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--accent)', marginBottom: 10 }}>
               {COP(selectedMesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
             </div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {selectedMesa.items.reduce((s, i) => s + i.qty, 0)} productos · {selectedMesa.name} · {selectedMesa.alias}
+            </div>
+          </div>
 
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Método de pago</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+          {/* ¿Cómo pagó? */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>¿Cómo pagó?</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {PAYMENTS.map(p => (
                 <button
                   key={p.id}
                   className="btn"
                   style={{
-                    width: '100%',
-                    padding: '12px 16px',
+                    flex: '1 1 calc(50% - 4px)',
+                    minWidth: 140,
+                    padding: '14px 16px',
                     fontSize: 14,
                     fontWeight: 700,
                     background: payment === p.id ? p.color : 'var(--panel2)',
                     borderColor: payment === p.id ? p.color : 'var(--line)',
                     color: payment === p.id ? '#fff' : 'var(--ink)',
+                    border: payment === p.id ? '2px solid' : '1px solid',
                   }}
                   onClick={() => setPayment(p.id)}
                 >
@@ -1017,23 +1055,63 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
                 </button>
               ))}
             </div>
+          </div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn" onClick={() => setPhase('order')} style={{ flex: 1 }}>
-                Volver
-              </button>
-              <button
-                className="btn primary"
-                onClick={cobrarMesa}
-                disabled={!payment}
-                style={{ flex: 1 }}
-              >
-                Confirmar cobro
-              </button>
-            </div>
+          {/* Evidencia (opcional) */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Evidencia (opcional)</div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) setEvidenceFile(file);
+              }}
+              style={{ width: '100%' }}
+            />
+            {evidenceFile && (
+              <div style={{ fontSize: 12, color: 'var(--green)', marginTop: 6 }}>
+                ✓ {evidenceFile.name}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn" onClick={() => setShowingCobro(false)} style={{ flex: 1 }}>
+              &gt; Volver
+            </button>
+            <button
+              className="btn primary"
+              onClick={cobrarMesa}
+              disabled={!payment}
+              style={{ flex: 1, background: 'var(--accent)', borderColor: 'var(--accent)' }}
+            >
+              ✓ Confirmar cobro y liberar mesa
+            </button>
           </div>
         </Modal>
       )}
+
+      <style jsx>{`
+        .live-dot {
+          display: inline-block;
+          animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        @media (max-width: 768px) {
+          .mesa-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .pos-modal {
+            grid-template-columns: 1fr !important;
+            max-height: 95vh !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

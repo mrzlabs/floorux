@@ -43,12 +43,13 @@ const PATHS: Record<string, string> = {
   sun: 'M12 4V2M12 22v-2M4.9 4.9 3.5 3.5M20.5 20.5l-1.4-1.4M4 12H2M22 12h-2M4.9 19.1l-1.4 1.4M20.5 3.5l-1.4 1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z',
   power: 'M12 4v8M7 6a7 7 0 1 0 10 0',
   calendar: 'M7 3v3M17 3v3M4 8h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z',
+  table: 'M5 11h14M6 11V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v3M6 11l-1 8M18 11l1 8M9 11v4M15 11v4',
 };
 
-export function Icon({ name, s = 20, sw = 1.8 }: { name: string; s?: number; sw?: number }) {
+export function Icon({ name, s = 20, sw = 1.8, color, style }: { name: string; s?: number; sw?: number; color?: string; style?: React.CSSProperties }) {
   return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"}
+      strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', ...style }}>
       <path d={PATHS[name] || PATHS.dash} />
     </svg>
   );
