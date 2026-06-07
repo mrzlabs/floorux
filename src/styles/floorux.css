@@ -213,7 +213,7 @@ button{font-family:inherit}
 .mesa.add:hover{color:var(--accent);border-color:var(--accent)}
 
 /* ---------- modal / sheet ---------- */
-.scrim{position:fixed;inset:0;background:rgba(4,4,8,.66);backdrop-filter:blur(8px);z-index:80;animation:fade .2s;display:flex;align-items:center;justify-content:center;padding:24px}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:80;animation:fade .2s;display:flex;align-items:center;justify-content:center;padding:24px}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .modal{background:var(--panel);border:1px solid var(--line2);border-radius:22px;width:100%;max-width:520px;max-height:88vh;overflow:auto;box-shadow:var(--shadow);animation:rise .26s cubic-bezier(.2,1,.4,1)}
 .modal.wide{max-width:900px}

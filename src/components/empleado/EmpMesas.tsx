@@ -700,6 +700,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
           <Field label="Alias del cliente o grupo">
             <input
+              className="inp"
               type="text"
               placeholder="Ej. Mesa del cumpleaños, Don Jorge..."
               value={alias}
@@ -734,6 +735,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
         <Modal title="Nueva mesa" onClose={() => setCreating(false)}>
           <Field label="Nombre de la mesa">
             <input
+              className="inp"
               type="text"
               placeholder="Ej: Mesa 1, VIP, Terraza..."
               value={newMesaName}
@@ -758,14 +760,8 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       {/* Modal POS */}
       {selectedMesa && !showingCobro && (
         <div
+          className="scrim"
           style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            background: 'rgba(0,0,0,0.75)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
             padding: 20,
           }}
           onClick={() => setSelectedMesa(null)}
@@ -780,11 +776,14 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
               gridTemplateColumns: '1.5fr 1fr',
               gap: 0,
               overflow: 'hidden',
+              background: 'var(--panel)',
+              border: '1px solid var(--line2)',
+              color: 'var(--ink)',
             }}
             onClick={e => e.stopPropagation()}
           >
             {/* Columna izquierda: Catálogo */}
-            <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+            <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', background: 'var(--panel)' }}>
               <div style={{ padding: 20, borderBottom: '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -800,8 +799,9 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
                 <Field label="">
                   <div style={{ position: 'relative' }}>
-                    <Icon name="search" s={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                    <Icon name="search" s={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
                     <input
+                      className="inp"
                       type="text"
                       placeholder="Buscar producto..."
                       value={q}
@@ -1032,7 +1032,7 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
           {/* ¿Cómo pagó? */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>¿Cómo pagó?</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 10 }}>¿Cómo pagó?</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {PAYMENTS.map(p => (
                 <button
@@ -1059,8 +1059,9 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
 
           {/* Evidencia (opcional) */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Evidencia (opcional)</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 10 }}>Evidencia (opcional)</div>
             <input
+              className="inp"
               type="file"
               accept="image/*"
               onChange={e => {
