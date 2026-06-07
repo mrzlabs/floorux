@@ -380,6 +380,151 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       .eq('product_id', item.product_id);
   }
 
+  async function removeItem(item: CartItem, motivo: string) {
+    if (!selectedMesa || !isAdmin) return;
+
+    // 1. Optimistic update: restaurar stock inmediatamente
+    setProducts(prev => prev.map(p =>
+      p.id === item.product_id
+        ? { ...p, stock: p.stock + item.qty }
+        : p
+    ));
+
+    // 2. Obtener producto actual para calcular nuevo stock
+    const product = products.find(p => p.id === item.product_id);
+    if (!product) return;
+
+    // 3. Persistir en BD
+    await supabase
+      .from('products')
+      .update({ stock: product.stock + item.qty })
+      .eq('id', item.product_id);
+
+    // 4. Eliminar de mesa_items
+    await supabase
+      .from('mesa_items')
+      .delete()
+      .eq('mesa_id', selectedMesa.id)
+      .eq('product_id', item.product_id);
+
+    // 5. Audit log
+    await supabase.from('mesa_audit_log').insert({
+      mesa_id: selectedMesa.id,
+      action: 'remove_item',
+      product_id: item.product_id,
+      qty: item.qty,
+      motivo,
+      admin_id: empleadoId,
+    });
+
+    toast('Producto eliminado', 'check');
+  }
+
+  async function reducirCantidad(item: CartItem, qty: number, motivo: string) {
+    if (!selectedMesa || !isAdmin) return;
+
+    const newQty = item.qty - qty;
+
+    if (newQty <= 0) {
+      // Si llega a 0, eliminar el ítem
+      removeItem(item, motivo);
+      return;
+    }
+
+    // 1. Optimistic update: restaurar stock
+    setProducts(prev => prev.map(p =>
+      p.id === item.product_id
+        ? { ...p, stock: p.stock + qty }
+        : p
+    ));
+
+    // 2. Obtener producto actual
+    const product = products.find(p => p.id === item.product_id);
+    if (!product) return;
+
+    // 3. Persistir en BD
+    await supabase
+      .from('products')
+      .update({ stock: product.stock + qty })
+      .eq('id', item.product_id);
+
+    // 4. Actualizar mesa_items
+    await supabase
+      .from('mesa_items')
+      .update({ qty: newQty })
+      .eq('mesa_id', selectedMesa.id)
+      .eq('product_id', item.product_id);
+
+    // 5. Audit log
+    await supabase.from('mesa_audit_log').insert({
+      mesa_id: selectedMesa.id,
+      action: 'reduce_qty',
+      product_id: item.product_id,
+      qty,
+      motivo,
+      admin_id: empleadoId,
+    });
+
+    toast(`Cantidad reducida: -${qty}`, 'check');
+  }
+
+  async function cancelarMesa(motivo: string) {
+    if (!selectedMesa || !isAdmin) return;
+
+    // 1. Acumular TODOS los cambios de stock
+    const stockChanges = new Map<string, number>();
+    selectedMesa.items.forEach(item => {
+      stockChanges.set(item.product_id, item.qty);
+    });
+
+    // 2. UN SOLO setProducts con todos los cambios
+    setProducts(prev => prev.map(p => {
+      const qtyToRestore = stockChanges.get(p.id);
+      return qtyToRestore
+        ? { ...p, stock: p.stock + qtyToRestore }
+        : p;
+    }));
+
+    // 3. Persistir cada producto en BD
+    for (const [productId, qty] of stockChanges) {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ stock: product.stock + qty })
+          .eq('id', productId);
+      }
+    }
+
+    // 4. Eliminar todos los items
+    await supabase
+      .from('mesa_items')
+      .delete()
+      .eq('mesa_id', selectedMesa.id);
+
+    // 5. Liberar mesa
+    await supabase
+      .from('mesas')
+      .update({
+        status: 'libre',
+        alias: null,
+        opened_at: null,
+        opened_by: null
+      })
+      .eq('id', selectedMesa.id);
+
+    // 6. Audit log
+    await supabase.from('mesa_audit_log').insert({
+      mesa_id: selectedMesa.id,
+      action: 'cancel_mesa',
+      motivo,
+      admin_id: empleadoId,
+    });
+
+    setSelectedMesa(null);
+    toast('Mesa cancelada y stock restaurado', 'check');
+  }
+
   async function cobrarMesa() {
     if (!selectedMesa || !payment) {
       toast('Selecciona un método de pago', 'alert');
