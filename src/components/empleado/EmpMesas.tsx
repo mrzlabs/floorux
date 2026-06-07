@@ -17,6 +17,27 @@ const PAYMENTS = [
   { id: 'nequi', name: 'Nequi / Daviplata', color: 'var(--yellow)' },
 ];
 
+const MOTIVOS_REDUCIR = [
+  'Error del empleado',
+  'Cliente cambió pedido',
+  'Producto equivocado',
+  'Otro'
+];
+
+const MOTIVOS_ELIMINAR = [
+  'Error de pedido',
+  'Cortesía',
+  'Devolución',
+  'Otro'
+];
+
+const MOTIVOS_CANCELAR = [
+  'Cobro externo',
+  'Cortesía total',
+  'Error operativo',
+  'Otro'
+];
+
 interface CartItem {
   product_id: string;
   name: string;
@@ -34,9 +55,10 @@ interface EmpMesasProps {
   comercioId: string;
   empleadoId: string;
   shiftId: string | null;
+  isAdmin?: boolean;
 }
 
-export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
+export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: EmpMesasProps) {
   const toast = useToast();
   const [mesas, setMesas] = useState<LocalMesa[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,6 +78,30 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
   const [showingCobro, setShowingCobro] = useState(false);
   const [payment, setPayment] = useState<string | null>(null);
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+
+  // Modal: Reducir cantidad (admin)
+  const [showReduceNota, setShowReduceNota] = useState(false);
+  const [reduceItem, setReduceItem] = useState<CartItem | null>(null);
+  const [reduceQty, setReduceQty] = useState(1);
+  const [reduceMotivo, setReduceMotivo] = useState('');
+  const [reduceMotivoCustom, setReduceMotivoCustom] = useState('');
+
+  // Modal: Eliminar ítem (admin)
+  const [showRemoveNota, setShowRemoveNota] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<CartItem | null>(null);
+  const [removeMotivo, setRemoveMotivo] = useState('');
+  const [removeMotivoCustom, setRemoveMotivoCustom] = useState('');
+
+  // Modal: Cancelar mesa (admin)
+  const [showCancelarNota, setShowCancelarNota] = useState(false);
+  const [cancelarMotivo, setCancelarMotivo] = useState('');
+  const [cancelarMotivoCustom, setCancelarMotivoCustom] = useState('');
+
+  // Mobile tabs
+  const [mobileTab, setMobileTab] = useState<'catalogo' | 'consumo'>('catalogo');
+
+  // Animaciones
+  const [totalFlash, setTotalFlash] = useState(false);
 
   // Crear mesa
   const [creating, setCreating] = useState(false);
@@ -91,20 +137,9 @@ export function EmpMesas({ comercioId, empleadoId, shiftId }: EmpMesasProps) {
       }, () => loadMesas())
       .subscribe();
 
-    const productsChannel = supabase
-      .channel(`products-emp:${comercioId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'products',
-        filter: `comercio_id=eq.${comercioId}`,
-      }, () => loadProducts())
-      .subscribe();
-
     return () => {
       supabase.removeChannel(mesasChannel);
       supabase.removeChannel(itemsChannel);
-      supabase.removeChannel(productsChannel);
     };
   }, [comercioId, shiftId]);
 
