@@ -459,7 +459,13 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
             {PRESETS.map(p => (
               <button key={p} type="button"
                 className={'fchip' + (preset === p ? ' on' : '')}
-                style={preset === p ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}
+                style={preset === p ? {
+                  background:'var(--accent)',
+                  borderColor:'var(--accent)',
+                  color:'#0b0a12',
+                  fontWeight: 700,
+                  boxShadow: '0 2px 8px -2px var(--accent)',
+                } : undefined}
                 onClick={() => applyPreset(p)}>
                 {PRESET_LABELS[p]}
               </button>
@@ -474,8 +480,19 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
           </div>
           {/* Live badge */}
           {isLive && (
-            <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color:'var(--green)', padding:'4px 10px', background:'color-mix(in srgb,var(--green) 12%,transparent)', borderRadius:999, border:'1px solid color-mix(in srgb,var(--green) 30%,transparent)' }}>
-              <span className="live-dot" style={{ color:'var(--green)' }}>●</span> En vivo
+            <span style={{
+              display:'flex',
+              alignItems:'center',
+              gap: 5,
+              fontSize: 12,
+              fontWeight: 700,
+              color: 'var(--green)',
+              padding: '4px 10px',
+              background: 'color-mix(in srgb, var(--green) 12%, transparent)',
+              borderRadius: 999,
+              border: '1px solid color-mix(in srgb, var(--green) 30%, transparent)',
+            }}>
+              <span className="live-dot">●</span> En vivo
             </span>
           )}
           {/* Export buttons */}
@@ -489,25 +506,108 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
         {/* ─── 2. KPI CARDS ─────────────────────────────── */}
         <div className="grid g4" style={{ marginBottom:16 }}>
           {[
-            { label:'Ventas del período', value:COPk(total), icon:'cash', color:'var(--accent)',
+            {
+              label: 'Ventas del período',
+              value: COPk(total),
+              icon: 'cash',
+              color: 'var(--accent)',
               sub: prevTotal > 0 ? `${trend >= 0 ? '+' : ''}${trend}% vs período anterior` : undefined,
-              subColor: trend >= 0 ? 'var(--green)' : 'var(--red)' },
-            { label:'Utilidad bruta', value:COPk(util), icon:'chart', color:'var(--accent2)', sub:`Margen ${margen}%`, subColor:'var(--muted)' },
-            { label:'Mesas / Ítems', value:`${sales.length} / ${itemsCount}`, icon:'mesas', color:'var(--accent3)' },
-            { label:'Descuadre inventario', value:COPk(totalRiesgo), icon:'alert', color: totalRiesgo > 0 ? 'var(--red)' : 'var(--green)',
-              sub: descuadreCount > 0 ? `${descuadreCount} producto(s)` : 'Inventario cuadra', subColor: descuadreCount > 0 ? 'var(--red)' : 'var(--green)' },
+              subColor: trend >= 0 ? 'var(--green)' : 'var(--red)',
+            },
+            {
+              label: 'Utilidad bruta',
+              value: COPk(util),
+              icon: 'chart',
+              color: 'var(--accent2)',
+              sub: `Margen ${margen}%`,
+              subColor: 'var(--muted)',
+            },
+            {
+              label: 'Mesas / Ítems',
+              value: `${sales.length} / ${itemsCount}`,
+              icon: 'mesas',
+              color: 'var(--accent3)',
+            },
+            {
+              label: 'Descuadre inventario',
+              value: COPk(totalRiesgo),
+              icon: 'alert',
+              color: totalRiesgo > 0 ? 'var(--red)' : 'var(--green)',
+              sub: descuadreCount > 0 ? `${descuadreCount} producto(s)` : 'Inventario cuadra',
+              subColor: descuadreCount > 0 ? 'var(--red)' : 'var(--green)',
+            },
           ].map(({ label, value, icon, color, sub, subColor }) => (
             <div key={label} style={{
-              borderLeft:`3px solid ${color}`,
-              background:`color-mix(in srgb, ${color} 7%, var(--card))`,
-              borderRadius:12, padding:'16px 18px',
+              borderLeft: `3px solid ${color}`,
+              background: `linear-gradient(135deg,
+                color-mix(in srgb, ${color} 10%, var(--card)) 0%,
+                color-mix(in srgb, ${color} 4%, var(--card)) 100%)`,
+              borderRadius: 12,
+              padding: '16px 18px',
+              boxShadow: isLive ? `0 0 20px -8px ${color}` : undefined,
+              position: 'relative',
             }}>
-              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:8 }}>
-                <span style={{ fontSize:12, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.04em' }}>{label}</span>
-                <span style={{ color, opacity:.7 }}><Icon name={icon} s={28} /></span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                marginBottom: 8
+              }}>
+                <span style={{
+                  fontSize: 11,
+                  color: 'var(--muted)',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.06em',
+                }}>
+                  {label}
+                </span>
+                <span
+                  className={isLive ? 'live-icon' : ''}
+                  style={{
+                    color,
+                    opacity: 0.7,
+                    filter: isLive ? `drop-shadow(0 0 8px ${color})` : undefined,
+                  }}
+                >
+                  <Icon name={icon} s={32} />
+                </span>
               </div>
-              <div style={{ fontSize:24, fontWeight:900, color:'var(--ink)' }}>{value}</div>
-              {sub && <div style={{ fontSize:12, marginTop:4, color: subColor ?? 'var(--muted)', fontWeight:600 }}>{sub}</div>}
+
+              <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--ink)' }}>
+                {value}
+              </div>
+
+              {sub && (
+                <div style={{
+                  fontSize: 12,
+                  marginTop: 6,
+                  color: subColor,
+                  fontWeight: 600
+                }}>
+                  {sub}
+                </div>
+              )}
+
+              {isLive && (
+                <span style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--green)',
+                  padding: '3px 8px',
+                  background: 'color-mix(in srgb, var(--green) 12%, transparent)',
+                  borderRadius: 999,
+                  border: '1px solid color-mix(in srgb, var(--green) 30%, transparent)',
+                }}>
+                  <span className="live-dot">●</span>
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -517,7 +617,12 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
           {/* Hourly bars */}
           <div className="card" style={{ padding:20 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-              <span style={{ fontSize:14, fontWeight:800 }}>Ventas por hora</span>
+              <div>
+                <span style={{ fontSize:14, fontWeight:800 }}>Ventas por hora</span>
+                <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
+                  Top 3: {topHours.first}:00 · {topHours.second}:00 · {topHours.third}:00
+                </div>
+              </div>
               {isLive && (
                 <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:'var(--green)' }}>
                   <span className="live-dot">●</span> En vivo
@@ -526,25 +631,53 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
             </div>
             <div style={{ display:'flex', gap:6, alignItems:'flex-end', height:120 }}>
               {hourlyData.map(({ h, v }) => {
-                const pct    = Math.round(v / maxHourVal * 100);
-                const isPeak = v > 0 && v === peakHour.v;
+                const pct = Math.round(v / maxHourVal * 100);
+                const rank = getHourRank(h, v);
+
+                const gradients = {
+                  1: 'linear-gradient(to top, var(--yellow), var(--accent))',
+                  2: 'linear-gradient(to top, var(--accent), var(--accent2))',
+                  3: 'linear-gradient(to top, var(--accent2), var(--accent3))',
+                };
+                const glows = {
+                  1: '0 0 20px -2px var(--yellow)',
+                  2: '0 0 12px -2px var(--accent)',
+                  3: '0 0 6px -2px var(--accent2)',
+                };
+
                 return (
                   <div key={h} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-                    <span style={{ fontSize:9, color:'var(--muted)', fontWeight:600, whiteSpace:'nowrap' }}>
+                    <span style={{
+                      fontSize: 9,
+                      color: rank ? 'var(--accent)' : 'var(--muted)',
+                      fontWeight: rank ? 700 : 600,
+                      whiteSpace: 'nowrap'
+                    }}>
                       {v > 0 ? '$' + Math.round(v / 1000) + 'K' : ''}
                     </span>
                     <div style={{ width:'100%', background:'var(--border)', borderRadius:'4px 4px 0 0', height:'100%', display:'flex', alignItems:'flex-end', overflow:'hidden' }}>
-                      <div style={{
-                        width:'100%', borderRadius:'4px 4px 0 0',
-                        height:`${pct}%`, minHeight: v > 0 ? 3 : 0,
-                        background: isPeak
-                          ? 'linear-gradient(to top, var(--yellow), var(--accent))'
-                          : 'linear-gradient(to top, var(--accent), var(--accent2))',
-                        boxShadow: isPeak ? '0 0 14px var(--yellow)' : undefined,
-                        transition:'height .4s',
-                      }} />
+                      <div
+                        className="hourly-bar"
+                        style={{
+                          width: '100%',
+                          borderRadius: '4px 4px 0 0',
+                          height: `${pct}%`,
+                          minHeight: v > 0 ? 3 : 0,
+                          background: rank ? gradients[rank as 1 | 2 | 3] : 'linear-gradient(to top, var(--muted2), var(--muted))',
+                          boxShadow: rank ? glows[rank as 1 | 2 | 3] : undefined,
+                          opacity: rank ? 1 : 0.5,
+                          transition: 'height .4s',
+                        }}
+                      />
                     </div>
-                    <span style={{ fontSize:9, color:'var(--muted2)', whiteSpace:'nowrap' }}>{HOUR_LABELS[h]}</span>
+                    <span style={{
+                      fontSize: 9,
+                      color: rank ? 'var(--accent)' : 'var(--muted2)',
+                      fontWeight: rank ? 700 : 400,
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {HOUR_LABELS[h]}
+                    </span>
                   </div>
                 );
               })}
@@ -555,22 +688,70 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
           <div className="card" style={{ padding:20 }}>
             <span style={{ fontSize:14, fontWeight:800 }}>Balance del período</span>
             <div style={{ marginTop:16 }}>
-              <div style={{ display:'flex', height:22, borderRadius:6, overflow:'hidden', marginBottom:8 }}>
-                <div style={{ width:`${costPct}%`, background:'color-mix(in srgb,var(--muted) 60%,transparent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'var(--ink)', transition:'width .4s' }}>
+              <div style={{
+                display: 'flex',
+                height: 26,
+                borderRadius: 8,
+                overflow: 'hidden',
+                marginBottom: 12,
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{
+                  width: `${costPct}%`,
+                  background: 'linear-gradient(90deg, color-mix(in srgb, var(--red) 35%, transparent) 0%, color-mix(in srgb, var(--red) 15%, transparent) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--red)',
+                  transition: 'width .4s',
+                }}>
                   {costPct > 8 ? `${costPct}%` : ''}
                 </div>
-                <div style={{ width:`${100 - costPct}%`, background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#0b0a12', transition:'width .4s' }}>
+                <div style={{
+                  width: `${100 - costPct}%`,
+                  background: 'linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#0b0a12',
+                  transition: 'width .4s',
+                }}>
                   {100 - costPct > 8 ? `${100 - costPct}%` : ''}
                 </div>
               </div>
               {[
-                { label:'Ingresos', value:total, color:'var(--ink)' },
-                { label:'Costo de producto', value:cost, color:'var(--muted)' },
-                { label:'Utilidad bruta', value:util, color:'var(--green)' },
-              ].map(({ label, value, color }) => (
-                <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid var(--line)' }}>
-                  <span style={{ ...F13, color:'var(--muted)' }}>● {label}</span>
-                  <b style={{ ...F13, color }}>{COP(value)}</b>
+                { label:'Ingresos', value:total, color:'var(--ink)', dot:'var(--accent)' },
+                { label:'Costo de producto', value:cost, color:'var(--muted)', dot:'var(--red)' },
+                { label:'Utilidad bruta', value:util, color:'var(--green)', dot:'var(--green)' },
+              ].map(({ label, value, color, dot }) => (
+                <div key={label} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--line)'
+                }}>
+                  <span style={{
+                    fontSize: 13,
+                    color: 'var(--muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}>
+                    <span style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: dot,
+                      boxShadow: `0 0 8px -2px ${dot}`,
+                      display: 'inline-block',
+                    }} />
+                    {label}
+                  </span>
+                  <b style={{ fontSize: 13, color }}>{COP(value)}</b>
                 </div>
               ))}
             </div>
@@ -596,28 +777,47 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
                 </tr>
               </thead>
               <tbody>
-                {sortedAudit.map((r, i) => (
-                  <tr key={r.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
-                    <td style={{ ...F13, fontWeight:700 }}>{r.name}</td>
-                    <td><span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:999, background:catColor(r.cat)+'22', color:catColor(r.cat) }}>{r.cat}</span></td>
-                    <td style={C}>{r.vendidas}</td>
-                    <td style={C}>{r.descontadas}</td>
-                    <td>
-                      {r.diferencia === 0
-                        ? <Chip color="var(--green)">Cuadra</Chip>
-                        : <span style={{ fontSize:13, fontWeight:700, color: r.diferencia > 0 ? 'var(--orange)' : 'var(--red)' }}>
-                            {r.diferencia > 0 ? '+' : ''}{r.diferencia}
-                          </span>
+                {sortedAudit.map((r, i) => {
+                  const hasProblem = r.diferencia !== 0;
+                  return (
+                    <tr
+                      key={r.id}
+                      style={
+                        hasProblem
+                          ? {
+                              background: 'color-mix(in srgb, var(--red) 8%, var(--panel2))',
+                            }
+                          : i % 2 === 1
+                          ? { background: 'var(--panel2)' }
+                          : undefined
                       }
-                    </td>
-                    <td style={{ textAlign:'right' }}>
-                      {r.diferencia === 0
-                        ? <Chip color="var(--green)">Cuadra</Chip>
-                        : <span style={{ ...F13, fontWeight:700, color:'var(--red)' }}>{COP(r.valorRiesgo)}</span>
-                      }
-                    </td>
-                  </tr>
-                ))}
+                    >
+                      <td style={{ ...F13, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
+                        {hasProblem && (
+                          <Icon name="alert" s={16} style={{ color:'var(--red)' }} />
+                        )}
+                        {r.name}
+                      </td>
+                      <td><span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:999, background:catColor(r.cat)+'22', color:catColor(r.cat) }}>{r.cat}</span></td>
+                      <td style={C}>{r.vendidas}</td>
+                      <td style={C}>{r.descontadas}</td>
+                      <td>
+                        {r.diferencia === 0
+                          ? <Chip color="var(--green)">Cuadra</Chip>
+                          : <span style={{ fontSize:13, fontWeight:700, color: r.diferencia > 0 ? 'var(--orange)' : 'var(--red)' }}>
+                              {r.diferencia > 0 ? '+' : ''}{r.diferencia}
+                            </span>
+                        }
+                      </td>
+                      <td style={{ textAlign:'right' }}>
+                        {r.diferencia === 0
+                          ? <Chip color="var(--green)">Cuadra</Chip>
+                          : <span style={{ ...F13, fontWeight:700, color:'var(--red)' }}>{COP(r.valorRiesgo)}</span>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -637,14 +837,20 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
               <span style={{ fontSize:14, fontWeight:800 }}>Métodos de pago</span>
             </div>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
-              <button className={'fchip' + (payFilter === 'all' ? ' on' : '')} onClick={() => setPayFilter('all')} style={payFilter === 'all' ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}>Todos</button>
-              {PAYMENTS.map(p => (
-                <button key={p.id} className={'fchip' + (payFilter === p.id ? ' on' : '')}
-                  style={payFilter === p.id ? { background:p.color, borderColor:p.color, color:'#0b0a12' } : undefined}
-                  onClick={() => setPayFilter(payFilter === p.id ? 'all' : p.id)}>
-                  {p.name}
-                </button>
-              ))}
+              <button className={'fchip' + (payFilter === 'all' ? ' on' : '')} onClick={() => setPayFilter('all')} style={payFilter === 'all' ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}>
+                Todos ({filtPay.reduce((sum, p) => sum + (p.count || 0), 0)})
+              </button>
+              {PAYMENTS.map(p => {
+                const payData = filtPay.find(fp => fp.id === p.id);
+                const count = payData?.count || 0;
+                return (
+                  <button key={p.id} className={'fchip' + (payFilter === p.id ? ' on' : '')}
+                    style={payFilter === p.id ? { background:p.color, borderColor:p.color, color:'#0b0a12' } : undefined}
+                    onClick={() => setPayFilter(payFilter === p.id ? 'all' : p.id)}>
+                    {p.name} ({count})
+                  </button>
+                );
+              })}
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {filtPay.filter(p => p.v > 0).map(p => (
@@ -682,13 +888,26 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
             <table className="tbl">
               <thead><tr><th>Producto</th><th style={{ textAlign:'right' }}>Cant.</th><th style={{ textAlign:'right' }}>Venta</th></tr></thead>
               <tbody>
-                {filtTopProds.slice(0, 10).map((p, i) => (
-                  <tr key={p.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
-                    <td style={{ ...F13, fontWeight: i === 0 ? 700 : 400 }}>{i+1}. {p.name}</td>
-                    <td style={{ ...C, textAlign:'right' }}>{p.cant}</td>
-                    <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COPk(p.venta)}</td>
-                  </tr>
-                ))}
+                {filtTopProds.slice(0, 10).map((p, i) => {
+                  const medals = ['🥇', '🥈', '🥉'];
+                  const medal = i < 3 ? medals[i] : null;
+                  return (
+                    <tr key={p.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                      <td style={{
+                        ...F13,
+                        fontWeight: i < 3 ? 700 : 400,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}>
+                        {medal && <span style={{ fontSize: 16 }}>{medal}</span>}
+                        {!medal && `${i+1}.`} {p.name}
+                      </td>
+                      <td style={{ ...C, textAlign:'right' }}>{p.cant}</td>
+                      <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COPk(p.venta)}</td>
+                    </tr>
+                  );
+                })}
                 {filtTopProds.length === 0 && (
                   <tr><td colSpan={3} style={{ textAlign:'center', ...C, padding:20 }}>Sin ventas</td></tr>
                 )}
@@ -715,18 +934,24 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
           <table className="tbl">
             <thead><tr><th>Empleado</th><th style={{ textAlign:'right' }}>Mesas</th><th style={{ textAlign:'right' }}>Recaudado</th></tr></thead>
             <tbody>
-              {filtEmpStats.map((e, i) => (
-                <tr key={e.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
-                  <td>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <Avatar name={e.name} color={e.color} size="sm" />
-                      <b style={F13}>{e.name}</b>
-                    </div>
-                  </td>
-                  <td style={{ ...C, textAlign:'right' }}>{e.mesas}</td>
-                  <td style={{ ...F13, fontWeight:700, textAlign:'right', color:'var(--green)' }}>{COP(e.recaudado)}</td>
-                </tr>
-              ))}
+              {filtEmpStats.map((e, i) => {
+                const isTopEmployee = i === 0 && filtEmpStats.length > 1;
+                return (
+                  <tr key={e.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                    <td>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <Avatar name={e.name} color={e.color} size="sm" />
+                        <b style={F13}>{e.name}</b>
+                        {isTopEmployee && (
+                          <span style={{ fontSize: 16 }}>⭐</span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ ...C, textAlign:'right' }}>{e.mesas}</td>
+                    <td style={{ ...F13, fontWeight:700, textAlign:'right', color:'var(--green)' }}>{COP(e.recaudado)}</td>
+                  </tr>
+                );
+              })}
               {filtEmpStats.length === 0 && (
                 <tr><td colSpan={3} style={{ textAlign:'center', ...C, padding:20 }}>Sin datos de empleados</td></tr>
               )}
@@ -743,13 +968,26 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
             <table className="tbl">
               <thead><tr><th>Turno</th><th style={{ textAlign:'right' }}>Mesas</th><th style={{ textAlign:'right' }}>Total</th></tr></thead>
               <tbody>
-                {shiftRows.map((s, i) => (
-                  <tr key={s.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
-                    <td style={{ ...F13, maxWidth:360 }}>{s.label}</td>
-                    <td style={{ ...C, textAlign:'right' }}>{s.mesas}</td>
-                    <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COP(s.total)}</td>
-                  </tr>
-                ))}
+                {shiftRows.map((s, i) => {
+                  const isTopShift = i === 0 && shiftRows.length > 1;
+                  return (
+                    <tr key={s.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                      <td style={{
+                        ...F13,
+                        maxWidth: 360,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontWeight: isTopShift ? 700 : 400,
+                      }}>
+                        {isTopShift && <span style={{ fontSize: 16 }}>🏆</span>}
+                        {s.label}
+                      </td>
+                      <td style={{ ...C, textAlign:'right' }}>{s.mesas}</td>
+                      <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COP(s.total)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -758,16 +996,39 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
         {/* ─── 10. ALERT BANNER ─────────────────────────── */}
         {totalRiesgo > 100000 && (
           <div style={{
-            display:'flex', gap:12, padding:'12px 16px', borderRadius:10, marginBottom:16,
-            background:'color-mix(in srgb,var(--red) 12%,transparent)',
-            border:'1px solid color-mix(in srgb,var(--red) 30%,transparent)',
-            borderLeft:'3px solid var(--red)',
+            display: 'flex',
+            gap: 12,
+            padding: '14px 18px',
+            borderRadius: 12,
+            marginBottom: 16,
+            background: 'linear-gradient(135deg, color-mix(in srgb, var(--red) 15%, transparent) 0%, color-mix(in srgb, var(--red) 8%, transparent) 100%)',
+            border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)',
+            borderLeft: '4px solid var(--red)',
+            boxShadow: '0 0 24px -8px var(--red)',
           }}>
-            <span style={{ color:'var(--red)', flexShrink:0, marginTop:1 }}><Icon name="alert" s={18} /></span>
-            <div style={F13}>
-              <b style={{ color:'var(--red)' }}>El inventario no cuadra en {descuadreCount} producto(s).</b>
-              <span style={C}> Salieron más unidades de las vendidas — posible merma, consumo interno o venta sin registrar. </span>
-              <b>Valor en riesgo: <span style={{ color:'var(--red)' }}>{COP(totalRiesgo)}</span></b>
+            <span style={{
+              color: 'var(--red)',
+              flexShrink: 0,
+              marginTop: 1,
+              filter: 'drop-shadow(0 0 6px var(--red))',
+            }}>
+              <Icon name="alert" s={22} />
+            </span>
+            <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{
+                fontWeight: 700,
+                color: 'var(--red)',
+                marginBottom: 4,
+                fontSize: 14,
+              }}>
+                ⚠️ El inventario no cuadra en {descuadreCount} producto(s)
+              </div>
+              <div style={{ color: 'var(--muted)', marginBottom: 6 }}>
+                Salieron más unidades de las vendidas — posible merma, consumo interno o venta sin registrar.
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>
+                Valor en riesgo: <span style={{ color: 'var(--red)' }}>{COP(totalRiesgo)}</span>
+              </div>
             </div>
           </div>
         )}
