@@ -7,6 +7,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { SessionActions } from '@/components/shell/SessionActions';
 import type { Profile } from '@/types/db';
 
+const PALETTE = ['var(--accent)', 'var(--accent2)', 'var(--accent3)'];
+
 interface NavItem {
   href: string;
   label: string;
@@ -32,6 +34,7 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
   const pathname = usePathname();
   const [logoHover, setLogoHover] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showShopPhoto, setShowShopPhoto] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const role = profile.role === 'super_super_admin'
@@ -54,14 +57,9 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
   return (
     <aside className={'side' + (open ? ' open' : '')}>
       <div className="brand">
-        {/* brand-mark — interactivo solo cuando onBrandLogoUpload existe */}
         <span
           className="brand-mark"
-          style={{
-            overflow: 'hidden',
-            position: 'relative',
-            cursor: onBrandLogoUpload ? 'pointer' : undefined,
-          }}
+          style={{ overflow: 'hidden', position: 'relative', cursor: onBrandLogoUpload ? 'pointer' : undefined }}
           onMouseEnter={() => onBrandLogoUpload && setLogoHover(true)}
           onMouseLeave={() => setLogoHover(false)}
           onClick={() => onBrandLogoUpload && fileRef.current?.click()}
@@ -76,25 +74,14 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
               <circle cx="12" cy="10" r="1.6" fill="#0b0a12" />
             </svg>
           )}
-          {/* overlay hover */}
           {onBrandLogoUpload && logoHover && !uploading && (
-            <span style={{
-              position: 'absolute', inset: 0, borderRadius: 'inherit',
-              background: 'rgba(0,0,0,.55)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', color: '#fff',
-            }}>
+            <span style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
               <Icon name="camera" s={15} />
             </span>
           )}
         </span>
 
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handleFile}
-        />
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
 
         <div>
           <div className="brand-tx">FloorUX<span>.</span></div>
@@ -110,11 +97,18 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
       </div>
 
       <nav className="nav">
-        {navItems.map(item => {
+        {navItems.map((item, index) => {
           const active = pathname.startsWith(item.href);
+          const accentColor = PALETTE[index % 3];
           return (
-            <Link key={item.href} href={item.href} className={'nav-i' + (active ? ' on' : '')} onClick={onClose}>
-              <Icon name={item.icon} />
+            <Link
+              key={item.href}
+              href={item.href}
+              className={'nav-i' + (active ? ' on' : '')}
+              onClick={onClose}
+              style={active ? { color: accentColor } : undefined}
+            >
+              <span style={active ? { color: accentColor, display: 'contents' } : { display: 'contents' }}><Icon name={item.icon} /></span>
               <span>{item.label}</span>
               {item.badge != null && item.badge > 0 && <span className="ncount">{item.badge}</span>}
             </Link>
@@ -122,7 +116,12 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
         })}
       </nav>
 
-      <div className="shop">
+      {/* shop footer — avatar clickeable solo para ver */}
+      <div
+        className="shop"
+        style={{ cursor: shopImg ? 'zoom-in' : undefined }}
+        onClick={() => shopImg && setShowShopPhoto(true)}
+      >
         <Avatar name={shopName} color={shopColor} img={shopImg ?? undefined} />
         <div style={{ minWidth: 0 }}>
           <b>{shopName}</b>
@@ -130,6 +129,26 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
         </div>
       </div>
       <SessionActions returnPath={returnPath} />
+
+      {/* lightbox avatar shop */}
+      {showShopPhoto && shopImg && (
+        <div
+          onClick={() => setShowShopPhoto(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'zoom-out',
+          }}
+        >
+          <img
+            src={shopImg}
+            alt="Foto"
+            style={{ maxWidth: '80vw', maxHeight: '80vh', borderRadius: 16, objectFit: 'contain', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </aside>
   );
 }

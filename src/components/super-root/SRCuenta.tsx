@@ -10,18 +10,26 @@ import { applyFullTheme } from '@/hooks/useTheme';
 import type { Profile } from '@/types/db';
 
 const PALETAS = [
-  { name: 'Violeta', c: ['#7F77DD', '#27C3D8', '#B57BE0'] },
-  { name: 'Fuego',   c: ['#F5634A', '#F5A623', '#E040FB'] },
-  { name: 'Bosque',  c: ['#34d399', '#3b82f6', '#a78bfa'] },
-  { name: 'Rosa',    c: ['#f472b6', '#fb923c', '#a78bfa'] },
-  { name: 'Hielo',   c: ['#38bdf8', '#22d3ee', '#818cf8'] },
-  { name: 'Oro',     c: ['#F5C400', '#f59e42', '#E0708A'] },
-  { name: 'Neón',    c: ['#39FF14', '#FF073A', '#0FF0FC'] },
-  { name: 'Cobre',   c: ['#cb6015', '#e8a87c', '#7B3F00'] },
-  { name: 'Océano',  c: ['#0077B6', '#00B4D8', '#90E0EF'] },
-  { name: 'Noche',   c: ['#2D00F7', '#6A00F4', '#8900F2'] },
-  { name: 'Tierra',  c: ['#606c38', '#dda15e', '#bc6c25'] },
-  { name: 'Candy',   c: ['#ff006e', '#8338ec', '#3a86ff'] },
+  { name: 'Violeta',    c: ['#7F77DD', '#27C3D8', '#B57BE0'] },
+  { name: 'Fuego',      c: ['#F5634A', '#F5A623', '#E040FB'] },
+  { name: 'Bosque',     c: ['#34d399', '#3b82f6', '#a78bfa'] },
+  { name: 'Rosa',       c: ['#f472b6', '#fb923c', '#a78bfa'] },
+  { name: 'Hielo',      c: ['#38bdf8', '#22d3ee', '#818cf8'] },
+  { name: 'Oro',        c: ['#F5C400', '#f59e42', '#E0708A'] },
+  { name: 'Neón',       c: ['#39FF14', '#FF073A', '#0FF0FC'] },
+  { name: 'Cobre',      c: ['#cb6015', '#e8a87c', '#7B3F00'] },
+  { name: 'Océano',     c: ['#0077B6', '#00B4D8', '#90E0EF'] },
+  { name: 'Noche',      c: ['#2D00F7', '#6A00F4', '#8900F2'] },
+  { name: 'Tierra',     c: ['#606c38', '#dda15e', '#bc6c25'] },
+  { name: 'Candy',      c: ['#ff006e', '#8338ec', '#3a86ff'] },
+  { name: 'Aurora',     c: ['#00C9FF', '#92FE9D', '#FFD700'] },
+  { name: 'Lava',       c: ['#FF4500', '#FF8C00', '#FFD700'] },
+  { name: 'Galaxia',    c: ['#0F2027', '#203A43', '#2C5364'] },
+  { name: 'Menta',      c: ['#00B09B', '#96C93D', '#56CCF2'] },
+  { name: 'Rubí',       c: ['#CB2D3E', '#EF473A', '#F7971E'] },
+  { name: 'Zafiro',     c: ['#1A237E', '#283593', '#5C6BC0'] },
+  { name: 'Esmeralda',  c: ['#004D40', '#00796B', '#4DB6AC'] },
+  { name: 'Crepúsculo', c: ['#F7971E', '#FFD200', '#FF6B6B'] },
 ];
 
 const FONTS = ['Plus Jakarta Sans', 'DM Sans', 'Syne', 'Outfit', 'Space Grotesk'];
@@ -222,19 +230,22 @@ export function SRCuenta({ profile }: SRCuentaProps) {
 
         {/* paletas */}
         <Field label="Paleta de colores">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px 10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px 10px' }}>
             {PALETAS.map(p => {
               const active = p.c.every((col, i) => col === theme.palette[i]);
               return (
                 <div key={p.name} style={{ textAlign: 'center' }}>
                   <button
                     className={'swatch' + (active ? ' on' : '')}
-                    style={{ background: `linear-gradient(90deg, ${p.c[0]} 33.3%, ${p.c[1]} 33.3% 66.6%, ${p.c[2]} 66.6%)` }}
+                    style={{
+                      width: 52, height: 52,
+                      background: `linear-gradient(to right, ${p.c[0]} 0% 33%, ${p.c[1]} 33% 66%, ${p.c[2]} 66% 100%)`,
+                    }}
                     title={p.name}
                     aria-label={p.name}
                     onClick={() => live({ palette: p.c })}
                   />
-                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 5 }}>{p.name}</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 5, lineHeight: 1.2 }}>{p.name}</div>
                 </div>
               );
             })}
