@@ -1,94 +1,777 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Stat } from '@/components/ui/Stat';
-import { Bars, PayBars } from '@/components/ui/Bars';
-import { ReportToolbar } from '@/components/ui/ReportToolbar';
 import { Icon } from '@/components/ui/Icon';
+import { Avatar } from '@/components/ui/Avatar';
+import { Chip } from '@/components/ui/Chip';
 import { useToast } from '@/components/ui/ToastContext';
-import { COP, COPk, presetRange, rangeLabel, exportCSV } from '@/lib/utils';
-import type { Sale, SaleItem, Profile } from '@/types/db';
+import { COP, COPk, exportCSV, presetRange, rangeLabel, isoDate, parseISO, MES_ES } from '@/lib/utils';
+import type { Sale, SaleItem, Product, Shift, Profile } from '@/types/db';
+
+/* ── Constants ──────────────────────────────────────────── */
+const PRESETS = ['hoy', 'ayer', '7', '30'] as const;
+const PRESET_LABELS: Record<string, string> = { hoy: 'Hoy', ayer: 'Ayer', '7': '7 días', '30': '30 días' };
+
+const NIGHT_HOURS = [20, 21, 22, 23, 0, 1, 2, 3];
+const HOUR_LABELS: Record<number, string> = {
+  20:'8pm',21:'9pm',22:'10pm',23:'11pm',0:'12am',1:'1am',2:'2am',3:'3am',
+};
 
 const PAYMENTS = [
-  { id: 'efectivo', name: 'Efectivo', color: '#34d399' },
-  { id: 'transferencia', name: 'Transferencia', color: '#5A82EE' },
-  { id: 'qr', name: 'QR', color: '#B57BE0' },
-  { id: 'datafono', name: 'Datáfono', color: '#27C3D8' },
-  { id: 'nequi', name: 'Nequi / Daviplata', color: '#F5C400' },
+  { id:'efectivo',      name:'Efectivo',         color:'var(--green)'   },
+  { id:'transferencia', name:'Transferencia',     color:'var(--blue)'    },
+  { id:'qr',            name:'QR',                color:'var(--accent3)' },
+  { id:'datafono',      name:'Datáfono',          color:'var(--accent2)' },
+  { id:'nequi',         name:'Nequi / Daviplata', color:'var(--yellow)'  },
 ];
+
+const CAT_COLORS: Record<string, string> = {
+  licor:'var(--accent)', bebida:'var(--accent2)', coctel:'var(--accent3)',
+  'cóctel':'var(--accent3)', snack:'var(--yellow)', cigarro:'var(--muted)',
+};
+const catColor = (c: string) => CAT_COLORS[c.toLowerCase()] ?? 'var(--accent2)';
+
+/* ── Helpers ──────────────────────────────────────��─────── */
+function prevRange(r: { from: string; to: string }): { from: string; to: string } {
+  const f = parseISO(r.from), t = parseISO(r.to);
+  const days = Math.ceil((t.getTime() - f.getTime()) / 864e5) + 1;
+  const pTo = new Date(f.getTime() - 864e5);
+  const pFrom = new Date(pTo.getTime() - (days - 1) * 864e5);
+  return { from: isoDate(pFrom), to: isoDate(pTo) };
+}
+const fmtTime = (ts: string | null) =>
+  ts ? new Date(ts).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' }) : '—';
+const fmtDateShort = (ts: string) => {
+  const d = new Date(ts);
+  return `${['dom','lun','mar','mié','jue','vie','sáb'][d.getDay()]} ${d.getDate()} ${MES_ES[d.getMonth()]}`;
+};
+
+/* ── Types ──────────────────────────────────────────────── */
+type SaleWithItems = Sale & { sale_items: SaleItem[] };
+type AuditRow = { id:string; name:string; cat:string; price:number; vendidas:number; descontadas:number; diferencia:number; valorRiesgo:number };
+type EmpStat  = { id:string; name:string; color:string; mesas:number; recaudado:number };
+type TopProd  = { id:string; name:string; cat:string; cant:number; venta:number };
+type ShiftRow = { id:string; label:string; mesas:number; total:number; emp_name:string };
 
 interface AdminReportesProps {
   comercioId: string;
   comercioName: string;
 }
 
+/* ════════════════════════════════════════════════════════ */
 export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) {
   const toast = useToast();
+  const [preset, setPreset] = useState<string>('hoy');
   const [range, setRange] = useState(presetRange('hoy'));
-  const [sales, setSales] = useState<(Sale & { sale_items: SaleItem[]; profiles?: Profile })[]>([]);
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
+  const [sales,      setSales]      = useState<SaleWithItems[]>([]);
+  const [prevTotal,  setPrevTotal]  = useState(0);
+  const [products,   setProducts]   = useState<Product[]>([]);
+  const [allSI,      setAllSI]      = useState<{ product_id: string; qty: number }[]>([]);
+  const [shifts,     setShifts]     = useState<(Shift & { emp_name:string })[]>([]);
+  const [employees,  setEmployees]  = useState<Profile[]>([]);
+
+  const [auditSort, setAuditSort] = useState<{ k:string; asc:boolean }>({ k:'valorRiesgo', asc:false });
+  const [topCat,    setTopCat]    = useState('all');
+  const [empFilter, setEmpFilter] = useState('all');
+  const [payFilter, setPayFilter] = useState('all');
+  const [liveAnimations, setLiveAnimations] = useState(false);
+
   const supabase = createClient();
 
   useEffect(() => { load(); }, [comercioId, range]);
 
+  useEffect(() => {
+    setLiveAnimations(preset === 'hoy');
+  }, [preset]);
+
   async function load() {
-    const { data } = await supabase.from('sales').select('*, sale_items(*), profiles(full_name)')
-      .eq('comercio_id', comercioId)
-      .gte('closed_at', range.from + 'T00:00:00')
-      .lte('closed_at', range.to + 'T23:59:59')
-      .order('closed_at');
-    setSales((data ?? []) as any);
+    const fDT = `${range.from}T00:00:00`;
+    const tDT = `${range.to}T23:59:59`;
+    const pr  = prevRange(range);
+
+    const [{ data: s }, { data: pv }, { data: pr2 }, { data: sh }, { data: em }] = await Promise.all([
+      supabase.from('sales').select('*, sale_items(*)').eq('comercio_id', comercioId).gte('closed_at', fDT).lte('closed_at', tDT).order('closed_at'),
+      supabase.from('sales').select('total').eq('comercio_id', comercioId).gte('closed_at', pr.from + 'T00:00:00').lte('closed_at', pr.to + 'T23:59:59'),
+      supabase.from('products').select('id,name,cat,price,initial_stock,stock').eq('comercio_id', comercioId).is('deleted_at', null),
+      supabase.from('shifts').select('id,empleado_id,started_at,closed_at,status').eq('comercio_id', comercioId).gte('started_at', fDT).lte('started_at', tDT).order('started_at', { ascending: false }).limit(60),
+      supabase.from('profiles').select('id,full_name,color').eq('comercio_id', comercioId).eq('role', 'empleado'),
+    ]);
+
+    const salesRows = (s ?? []) as SaleWithItems[];
+    setSales(salesRows);
+    setPrevTotal(((pv ?? []) as {total:number}[]).reduce((a, v) => a + v.total, 0));
+
+    const prods = (pr2 ?? []) as Product[];
+    setProducts(prods);
+    setEmployees((em ?? []) as Profile[]);
+
+    const empMap: Record<string, string> = {};
+    ((em ?? []) as Profile[]).forEach(e => { empMap[e.id] = e.full_name; });
+
+    setShifts(((sh ?? []) as Shift[]).map(s2 => ({
+      ...s2,
+      emp_name: empMap[s2.empleado_id] ?? '—',
+    })));
+
+    if (prods.length) {
+      const { data: siAll } = await supabase.from('sale_items').select('product_id,qty').in('product_id', prods.map(p => p.id));
+      setAllSI((siAll ?? []) as { product_id: string; qty: number }[]);
+    }
   }
 
-  const total = sales.reduce((s, v) => s + v.total, 0);
-  const cost = sales.reduce((s, v) => s + v.cost, 0);
-  const util = total - cost;
+  /* ── Derived KPIs ───────────────────────────────────────── */
+  const total  = useMemo(() => sales.reduce((a, v) => a + v.total, 0), [sales]);
+  const cost   = useMemo(() => sales.reduce((a, v) => a + v.cost, 0), [sales]);
+  const util   = total - cost;
   const margen = total ? Math.round(util / total * 100) : 0;
+  const itemsCount = useMemo(() => sales.flatMap(s => s.sale_items).reduce((a, it) => a + it.qty, 0), [sales]);
 
-  const payMap: Record<string, number> = {};
-  sales.forEach(s => { payMap[s.payment_method] = (payMap[s.payment_method] ?? 0) + s.total; });
-  const payData = PAYMENTS.map(p => ({ ...p, v: payMap[p.id] ?? 0 }));
+  const trend = prevTotal > 0 ? Math.round((total - prevTotal) / prevTotal * 100) : 0;
+  const costPct = total > 0 ? Math.round(cost / total * 100) : 0;
 
-  const hourlyMap: Record<string, number> = {};
-  sales.forEach(s => {
-    const h = new Date(s.closed_at).getHours();
-    const label = h + 'h';
-    hourlyMap[label] = (hourlyMap[label] ?? 0) + s.total;
-  });
-  const bars = Object.entries(hourlyMap).map(([h, v]) => ({ h, v }));
+  /* ── Hourly chart ───────────────────────────────────────── */
+  const hourlyData = useMemo(() => {
+    const m: Record<number, number> = {};
+    sales.forEach(s => { const h = new Date(s.closed_at).getHours(); m[h] = (m[h] ?? 0) + s.total; });
+    return NIGHT_HOURS.map(h => ({ h, v: m[h] ?? 0 }));
+  }, [sales]);
+  const maxHourVal = Math.max(...hourlyData.map(d => d.v), 1);
 
-  const doCSV = () => {
-    exportCSV(`reporte-${comercioId}-${range.from}_${range.to}.csv`, [
-      [comercioName], ['Rango', rangeLabel(range)], [],
-      ['Ventas', total], ['Utilidad', util], ['Margen %', margen], ['Mesas', sales.length], [],
-      ['MÉTODOS DE PAGO', 'Valor'], ...payData.map(p => [p.name, p.v]),
-    ]);
-    toast('CSV descargado', 'download');
+  const topHours = useMemo(() => {
+    const sorted = [...hourlyData].sort((a, b) => b.v - a.v);
+    const top3 = sorted.slice(0, 3).map(d => d.h);
+    return {
+      first: top3[0],
+      second: top3[1],
+      third: top3[2],
+    };
+  }, [hourlyData]);
+
+  const getHourRank = (hour: number, value: number) => {
+    if (value === 0) return null;
+    if (hour === topHours.first) return 1;
+    if (hour === topHours.second) return 2;
+    if (hour === topHours.third) return 3;
+    return null;
   };
 
-  return (
+  /* ── Payment methods ────────────────────────────────────── */
+  const payMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    sales.forEach(s => { m[s.payment_method] = (m[s.payment_method] ?? 0) + s.total; });
+    return m;
+  }, [sales]);
+  const payData  = PAYMENTS.map(p => ({ ...p, v: payMap[p.id] ?? 0 }));
+  const payTotal = payData.reduce((a, p) => a + p.v, 0);
+  const filtPay  = payFilter === 'all' ? payData : payData.filter(p => p.id === payFilter);
+  const maxPay   = Math.max(...payData.map(p => p.v), 1);
+
+  /* ── Inventory audit ────────────────────────────────────── */
+  const auditRows = useMemo<AuditRow[]>(() => {
+    const siByProd: Record<string, number> = {};
+    allSI.forEach(si => { siByProd[si.product_id] = (siByProd[si.product_id] ?? 0) + si.qty; });
+    return products.map(p => {
+      const vendidas   = siByProd[p.id] ?? 0;
+      const descontadas = p.initial_stock - p.stock;
+      const diferencia = descontadas - vendidas;
+      return { id: p.id, name: p.name, cat: p.cat, price: p.price, vendidas, descontadas, diferencia, valorRiesgo: Math.abs(diferencia) * p.price };
+    });
+  }, [products, allSI]);
+
+  const totalRiesgo = useMemo(() => auditRows.filter(r => r.diferencia !== 0).reduce((a, r) => a + r.valorRiesgo, 0), [auditRows]);
+  const descuadreCount = auditRows.filter(r => r.diferencia !== 0).length;
+
+  const sortedAudit = useMemo(() => [...auditRows].sort((a, b) => {
+    const va = (a as any)[auditSort.k], vb = (b as any)[auditSort.k];
+    const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+    return auditSort.asc ? cmp : -cmp;
+  }), [auditRows, auditSort]);
+
+  const toggleAuditSort = (k: string) => setAuditSort(s => ({ k, asc: s.k === k ? !s.asc : false }));
+  const aSuf = (k: string) => auditSort.k === k ? (auditSort.asc ? ' ↑' : ' ↓') : '';
+
+  /* ── Top products ───────────────────────────────────────── */
+  const topProducts = useMemo<TopProd[]>(() => {
+    const m: Record<string, TopProd> = {};
+    sales.flatMap(s => s.sale_items).forEach(si => {
+      const prod = products.find(p => p.id === si.product_id);
+      if (!prod) return;
+      if (!m[prod.id]) m[prod.id] = { id: prod.id, name: prod.name, cat: prod.cat, cant: 0, venta: 0 };
+      m[prod.id].cant  += si.qty;
+      m[prod.id].venta += si.qty * si.unit_price;
+    });
+    return Object.values(m).sort((a, b) => b.venta - a.venta).slice(0, 10);
+  }, [sales, products]);
+
+  const filtTopProds = topCat === 'all' ? topProducts : topProducts.filter(p => p.cat === topCat);
+  const topCats = ['all', ...Array.from(new Set(topProducts.map(p => p.cat)))];
+
+  /* ── Employee stats ─────────────────────────────────────── */
+  const empStats = useMemo<EmpStat[]>(() => {
+    const m: Record<string, EmpStat> = {};
+    sales.forEach(sale => {
+      const shift = shifts.find(sh => sh.id === sale.shift_id);
+      if (!shift) return;
+      const emp = employees.find(e => e.id === shift.empleado_id);
+      if (!emp) return;
+      if (!m[emp.id]) m[emp.id] = { id: emp.id, name: emp.full_name, color: emp.color, mesas: 0, recaudado: 0 };
+      m[emp.id].mesas     += 1;
+      m[emp.id].recaudado += sale.total;
+    });
+    return Object.values(m).sort((a, b) => b.recaudado - a.recaudado);
+  }, [sales, shifts, employees]);
+
+  const filtEmpStats = empFilter === 'all' ? empStats : empStats.filter(e => e.id === empFilter);
+
+  /* ���─ Shift rows ─────────────────────────────────────────── */
+  const shiftRows = useMemo<ShiftRow[]>(() =>
+    shifts.map(sh => {
+      const shiftSales = sales.filter(s => s.shift_id === sh.id);
+      return {
+        id: sh.id,
+        label: `${fmtDateShort(sh.started_at)} · ${sh.emp_name} · ${fmtTime(sh.started_at)}–${fmtTime(sh.closed_at)}`,
+        mesas: shiftSales.length,
+        total: shiftSales.reduce((a, s) => a + s.total, 0),
+        emp_name: sh.emp_name,
+      };
+    }).filter(s => s.mesas > 0).sort((a, b) => b.total - a.total)
+  , [shifts, sales]);
+
+  /* ─�� Exports ────────────────────────────────────────────── */
+  function doCSV() {
+    exportCSV(`reporte-${range.from}_${range.to}.csv`, [
+      [`FloorUX CRM · Reporte de ventas — ${comercioName}`],
+      [`Período: ${rangeLabel(range)}`],
+      ['© 2026 mrzlabs · Todos los derechos reservados'],
+      [],
+      ['RESUMEN'],
+      ['Ventas', total], ['Costo', cost], ['Utilidad', util], ['Margen %', margen],
+      ['Mesas', sales.length], ['Ítems vendidos', itemsCount],
+      [],
+      ['MÉTODOS DE PAGO', 'Valor'],
+      ...payData.map(p => [p.name, p.v]),
+      [],
+      ['TOP PRODUCTOS', 'Cant.', 'Venta'],
+      ...topProducts.map(p => [p.name, p.cant, p.venta]),
+    ]);
+    toast('CSV descargado', 'check');
+  }
+
+  function doPDF() {
+    const pid = 'reporte-print';
+    document.getElementById(pid)?.remove();
+
+    const hourBars = hourlyData.map(d => {
+      const h = d.h.h; const pct = Math.round(d.v / maxHourVal * 100);
+      const isPeak = d.v === peakHour.v && d.v > 0;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+        <span style="font-size:9px;color:#666">${d.v > 0 ? '$'+Math.round(d.v/1000)+'K' : ''}</span>
+        <div style="width:100%;background:#eee;border-radius:4px;overflow:hidden;height:80px;display:flex;align-items:flex-end">
+          <div style="width:100%;background:${isPeak?'#F5C400':'#7F77DD'};height:${pct}%;border-radius:4px 4px 0 0;min-height:2px"></div>
+        </div>
+        <span style="font-size:9px;color:#999">${HOUR_LABELS[h]??''}</span>
+      </div>`;
+    }).join('');
+
+    const topRows = topProducts.slice(0, 10).map((p, i) =>
+      `<tr style="border-bottom:1px solid #eee"><td style="padding:5px 8px">${i+1}. ${p.name}</td><td style="padding:5px 8px;text-align:center">${p.cant}</td><td style="padding:5px 8px;text-align:right;font-weight:700">$${Math.round(p.venta/1000)}K</td></tr>`
+    ).join('');
+
+    const auditPdf = auditRows.filter(r => r.diferencia !== 0).map(r =>
+      `<tr style="border-bottom:1px solid #eee"><td style="padding:5px 8px">${r.name}</td><td style="padding:5px 8px">${r.cat}</td><td style="padding:5px 8px;text-align:right">${r.vendidas}</td><td style="padding:5px 8px;text-align:right">${r.descontadas}</td><td style="padding:5px 8px;text-align:right;color:${r.diferencia>0?'#f97316':'#ef4444'}">${r.diferencia>0?'+':''}${r.diferencia}</td><td style="padding:5px 8px;text-align:right;color:#ef4444;font-weight:700">$${Math.round(r.valorRiesgo/1000)}K</td></tr>`
+    ).join('');
+
+    const date = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+    const div = document.createElement('div');
+    div.id = pid;
+    div.innerHTML = `
+<div style="font-family:system-ui,sans-serif;color:#111;padding:0;position:relative">
+
+<!-- PORTADA -->
+<div style="page-break-after:always;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px;position:relative">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:180px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;user-select:none;white-space:nowrap">MAYLO</div>
+  <div style="font-size:52px;font-weight:900;letter-spacing:-.02em">FloorUX<span style="color:#7F77DD">.</span></div>
+  <div style="font-size:13px;color:#666;text-transform:uppercase;letter-spacing:.18em;margin-top:6px">OperUX · CRM Nightlife</div>
+  <div style="width:60px;height:3px;background:#7F77DD;border-radius:2px;margin:28px auto"></div>
+  <div style="font-size:28px;font-weight:800;margin-top:4px">${comercioName}</div>
+  <div style="font-size:16px;color:#444;margin-top:8px">Reporte de ventas · ${rangeLabel(range)}</div>
+  <div style="font-size:13px;color:#888;margin-top:6px">${date}</div>
+  <div style="margin-top:32px;font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.1em;border:1px solid #ddd;padding:6px 18px;border-radius:999px">Confidencial — uso interno</div>
+</div>
+
+<!-- S1: RESUMEN EJECUTIVO -->
+<div style="page-break-after:always;padding:40px;position:relative">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 1 — Resumen ejecutivo</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    ${[['Ventas del período', COP(total),'#7F77DD'],['Utilidad bruta',COP(util),'#27C3D8'],['Mesas cerradas',String(sales.length),'#B57BE0'],['Ítems vendidos',String(itemsCount),'#F5C400']].map(([l,v,c])=>`<div style="border-left:3px solid ${c};padding:12px 16px;background:#fafafa;border-radius:0 8px 8px 0"><div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em">${l}</div><div style="font-size:22px;font-weight:900;color:#111;margin-top:4px">${v}</div></div>`).join('')}
+  </div>
+  <div style="margin-bottom:6px;font-size:10px;color:#888">Balance del período</div>
+  <div style="display:flex;height:20px;border-radius:6px;overflow:hidden">
+    <div style="width:${costPct}%;background:#d1d5db;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#555">${costPct}%</div>
+    <div style="width:${100-costPct}%;background:#7F77DD;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${100-costPct}%</div>
+  </div>
+  <div style="display:flex;gap:24px;margin-top:10px;font-size:11px;color:#666">
+    <span>● Ingresos: ${COP(total)}</span>
+    <span>● Costo: ${COP(cost)}</span>
+    <span style="color:#16a34a;font-weight:700">● Utilidad: ${COP(util)}</span>
+  </div>
+</div>
+
+<!-- S2: VENTAS POR HORA + EMPLEADOS -->
+<div style="page-break-after:always;padding:40px;position:relative">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 2 — Análisis de ventas</h2>
+  <div style="margin-bottom:4px;font-size:12px;font-weight:700">Ventas por hora</div>
+  <div style="display:flex;gap:8px;align-items:flex-end;height:120px;margin-bottom:24px">${hourBars}</div>
+  ${empStats.length ? `<div style="margin-bottom:4px;font-size:12px;font-weight:700">Ventas por empleado</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:2px solid #111"><th style="text-align:left;padding:5px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Empleado</th><th style="text-align:right;padding:5px 8px;font-size:10px;text-transform:uppercase">Mesas</th><th style="text-align:right;padding:5px 8px;font-size:10px;text-transform:uppercase">Recaudado</th></tr></thead><tbody>${empStats.map(e=>`<tr style="border-bottom:1px solid #eee"><td style="padding:5px 8px">${e.name}</td><td style="padding:5px 8px;text-align:right">${e.mesas}</td><td style="padding:5px 8px;text-align:right;font-weight:700">${COP(e.recaudado)}</td></tr>`).join('')}</tbody></table>` : ''}
+</div>
+
+<!-- S3: INVENTARIO -->
+<div style="page-break-after:always;padding:40px;position:relative">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 3 — Cuadre de inventario</h2>
+  ${auditPdf ? `<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="border-bottom:2px solid #111">${['Producto','Cat.','Vendidas','Salidas','Dif.','Valor riesgo'].map(h=>`<th style="text-align:left;padding:5px 8px;font-size:9px;text-transform:uppercase;letter-spacing:.06em">${h}</th>`).join('')}</tr></thead><tbody>${auditPdf}</tbody></table><div style="margin-top:12px;font-size:12px;font-weight:700;color:#ef4444">Total valor en riesgo: ${COP(totalRiesgo)}</div>` : '<p style="color:#888;font-size:13px">Inventario cuadra correctamente en el período.</p>'}
+</div>
+
+<!-- S4: PAGOS + TOP PRODUCTOS -->
+<div style="padding:40px;position:relative">
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:120px;opacity:.03;font-weight:900;color:#7F77DD;pointer-events:none;white-space:nowrap">MAYLO</div>
+  <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:20px">Sección 4 — Métodos de pago · Top productos</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
     <div>
-      <div className="section-h" style={{ marginTop: 0 }}>
-        <div><h2 style={{ fontSize: 17 }}>Reporte de ventas</h2><div className="sub">{rangeLabel(range)}</div></div>
-      </div>
-      <ReportToolbar range={range} setRange={setRange} onCSV={doCSV} live={range.from === new Date().toISOString().split('T')[0]} />
-
-      <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Stat label="Ventas del período" value={COP(total)} icon="cash" color="var(--green)" />
-        <Stat label="Utilidad bruta" value={COP(util)} icon="chart" color="var(--accent)" sub={`Margen ${margen}%`} />
-        <Stat label="Mesas cobradas" value={sales.length} icon="mesas" color="var(--accent2)" />
-        <Stat label="Ticket promedio" value={sales.length ? COP(Math.round(total / sales.length)) : '$0'} icon="receipt" color="var(--yellow)" />
-      </div>
-
-      <div className="grid" style={{ gridTemplateColumns: '1.5fr 1fr', alignItems: 'start', marginBottom: 16 }}>
-        <div className="card chart">
-          <div className="chart-h">Ventas por hora</div>
-          <Bars data={bars.length ? bars : [{ h: '--', v: 0 }]} />
-        </div>
-        <div className="card chart">
-          <div className="chart-h" style={{ marginBottom: 14 }}>Métodos de pago</div>
-          <PayBars data={payData} total={total} />
-        </div>
-      </div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:12px">Distribución por método</div>
+      ${payData.filter(p=>p.v>0).map(p=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>${p.name}</span><span style="font-weight:700">${COP(p.v)}</span></div><div style="height:8px;background:#eee;border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.round(p.v/payTotal*100)}%;background:#7F77DD;border-radius:4px"></div></div></div>`).join('')}
     </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:12px">Top 10 productos</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="border-bottom:1px solid #ddd"><th style="text-align:left;padding:4px 6px;font-size:9px;text-transform:uppercase">Producto</th><th style="text-align:right;padding:4px 6px;font-size:9px;text-transform:uppercase">Cant.</th><th style="text-align:right;padding:4px 6px;font-size:9px;text-transform:uppercase">Venta</th></tr></thead><tbody>${topRows}</tbody></table>
+    </div>
+  </div>
+  <div style="margin-top:40px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:12px">
+    FloorUX CRM · OperUX by mrzlabs · © 2026 Todos los derechos reservados
+  </div>
+</div>
+
+</div>`;
+    document.body.appendChild(div);
+    window.print();
+    setTimeout(() => div.remove(), 1500);
+  }
+
+  /* ── Range helpers ──────────────────────────────────────── */
+  const isLive  = preset === 'hoy';
+  function applyPreset(p: string) {
+    setPreset(p); setRange(presetRange(p));
+  }
+  function applyCustom() {
+    if (customFrom && customTo && customFrom <= customTo) {
+      setPreset('custom'); setRange({ from: customFrom, to: customTo });
+    }
+  }
+
+  const F13 = { fontSize: 13 } as const;
+  const C   = { fontSize: 13, color: 'var(--muted)' } as const;
+
+  /* ════════════════════════════════════════════════════════ */
+  return (
+    <>
+      {/* Animations + print styles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes pulse-live {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.45; transform: scale(0.8); }
+        }
+
+        @keyframes icon-float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+        }
+
+        @keyframes icon-pulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+
+        .live-dot {
+          animation: pulse-live 1.4s ease-in-out infinite;
+          display: inline-block;
+        }
+
+        .live-icon {
+          animation: icon-float 2s ease-in-out infinite, icon-pulse 2s ease-in-out infinite;
+        }
+
+        .hourly-bar:hover {
+          transform: scaleY(1.02);
+          filter: brightness(1.15);
+          cursor: pointer;
+        }
+
+        @media print {
+          body > *:not(#reporte-print) { display: none !important; }
+          #reporte-print { display: block !important; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+
+          .pdf-page {
+            page-break-after: always;
+            position: relative;
+            min-height: 100vh;
+            padding: 40px;
+          }
+
+          .pdf-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+            opacity: 0.08;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+          }
+
+          .pdf-content {
+            position: relative;
+            z-index: 1;
+          }
+        }
+
+        #reporte-print { display: none; }
+      `}} />
+
+      <div>
+        {/* ─── 1. TOOLBAR ───────────────────────────────── */}
+        <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
+          {/* Preset chips */}
+          <div style={{ display:'flex', gap:6 }}>
+            {PRESETS.map(p => (
+              <button key={p} type="button"
+                className={'fchip' + (preset === p ? ' on' : '')}
+                style={preset === p ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}
+                onClick={() => applyPreset(p)}>
+                {PRESET_LABELS[p]}
+              </button>
+            ))}
+          </div>
+          {/* Date range */}
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            <input className="inp" type="date" style={{ maxWidth:145, ...F13 }} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+            <span style={C}>→</span>
+            <input className="inp" type="date" style={{ maxWidth:145, ...F13 }} value={customTo}   onChange={e => setCustomTo(e.target.value)} />
+            <button className="btn sm ghost" onClick={applyCustom} disabled={!customFrom || !customTo}>Aplicar</button>
+          </div>
+          {/* Live badge */}
+          {isLive && (
+            <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color:'var(--green)', padding:'4px 10px', background:'color-mix(in srgb,var(--green) 12%,transparent)', borderRadius:999, border:'1px solid color-mix(in srgb,var(--green) 30%,transparent)' }}>
+              <span className="live-dot" style={{ color:'var(--green)' }}>●</span> En vivo
+            </span>
+          )}
+          {/* Export buttons */}
+          <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
+            <button className="btn sm ghost" onClick={doCSV}><Icon name="download" s={14} /> CSV</button>
+            <button className="btn sm ghost" onClick={doPDF}><Icon name="receipt" s={14} /> PDF</button>
+          </div>
+        </div>
+        <div style={{ ...C, marginBottom:16, fontSize:12 }}>{rangeLabel(range)}</div>
+
+        {/* ─── 2. KPI CARDS ─────────────────────────────── */}
+        <div className="grid g4" style={{ marginBottom:16 }}>
+          {[
+            { label:'Ventas del período', value:COPk(total), icon:'cash', color:'var(--accent)',
+              sub: prevTotal > 0 ? `${trend >= 0 ? '+' : ''}${trend}% vs período anterior` : undefined,
+              subColor: trend >= 0 ? 'var(--green)' : 'var(--red)' },
+            { label:'Utilidad bruta', value:COPk(util), icon:'chart', color:'var(--accent2)', sub:`Margen ${margen}%`, subColor:'var(--muted)' },
+            { label:'Mesas / Ítems', value:`${sales.length} / ${itemsCount}`, icon:'mesas', color:'var(--accent3)' },
+            { label:'Descuadre inventario', value:COPk(totalRiesgo), icon:'alert', color: totalRiesgo > 0 ? 'var(--red)' : 'var(--green)',
+              sub: descuadreCount > 0 ? `${descuadreCount} producto(s)` : 'Inventario cuadra', subColor: descuadreCount > 0 ? 'var(--red)' : 'var(--green)' },
+          ].map(({ label, value, icon, color, sub, subColor }) => (
+            <div key={label} style={{
+              borderLeft:`3px solid ${color}`,
+              background:`color-mix(in srgb, ${color} 7%, var(--card))`,
+              borderRadius:12, padding:'16px 18px',
+            }}>
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:8 }}>
+                <span style={{ fontSize:12, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.04em' }}>{label}</span>
+                <span style={{ color, opacity:.7 }}><Icon name={icon} s={28} /></span>
+              </div>
+              <div style={{ fontSize:24, fontWeight:900, color:'var(--ink)' }}>{value}</div>
+              {sub && <div style={{ fontSize:12, marginTop:4, color: subColor ?? 'var(--muted)', fontWeight:600 }}>{sub}</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* ─── 3+4. HOURLY CHART + BALANCE ──────────────── */}
+        <div style={{ display:'grid', gridTemplateColumns:'1.6fr 1fr', gap:16, marginBottom:16 }}>
+          {/* Hourly bars */}
+          <div className="card" style={{ padding:20 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+              <span style={{ fontSize:14, fontWeight:800 }}>Ventas por hora</span>
+              {isLive && (
+                <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:'var(--green)' }}>
+                  <span className="live-dot">●</span> En vivo
+                </span>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:6, alignItems:'flex-end', height:120 }}>
+              {hourlyData.map(({ h, v }) => {
+                const pct    = Math.round(v / maxHourVal * 100);
+                const isPeak = v > 0 && v === peakHour.v;
+                return (
+                  <div key={h} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                    <span style={{ fontSize:9, color:'var(--muted)', fontWeight:600, whiteSpace:'nowrap' }}>
+                      {v > 0 ? '$' + Math.round(v / 1000) + 'K' : ''}
+                    </span>
+                    <div style={{ width:'100%', background:'var(--border)', borderRadius:'4px 4px 0 0', height:'100%', display:'flex', alignItems:'flex-end', overflow:'hidden' }}>
+                      <div style={{
+                        width:'100%', borderRadius:'4px 4px 0 0',
+                        height:`${pct}%`, minHeight: v > 0 ? 3 : 0,
+                        background: isPeak
+                          ? 'linear-gradient(to top, var(--yellow), var(--accent))'
+                          : 'linear-gradient(to top, var(--accent), var(--accent2))',
+                        boxShadow: isPeak ? '0 0 14px var(--yellow)' : undefined,
+                        transition:'height .4s',
+                      }} />
+                    </div>
+                    <span style={{ fontSize:9, color:'var(--muted2)', whiteSpace:'nowrap' }}>{HOUR_LABELS[h]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Balance bar */}
+          <div className="card" style={{ padding:20 }}>
+            <span style={{ fontSize:14, fontWeight:800 }}>Balance del período</span>
+            <div style={{ marginTop:16 }}>
+              <div style={{ display:'flex', height:22, borderRadius:6, overflow:'hidden', marginBottom:8 }}>
+                <div style={{ width:`${costPct}%`, background:'color-mix(in srgb,var(--muted) 60%,transparent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'var(--ink)', transition:'width .4s' }}>
+                  {costPct > 8 ? `${costPct}%` : ''}
+                </div>
+                <div style={{ width:`${100 - costPct}%`, background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#0b0a12', transition:'width .4s' }}>
+                  {100 - costPct > 8 ? `${100 - costPct}%` : ''}
+                </div>
+              </div>
+              {[
+                { label:'Ingresos', value:total, color:'var(--ink)' },
+                { label:'Costo de producto', value:cost, color:'var(--muted)' },
+                { label:'Utilidad bruta', value:util, color:'var(--green)' },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid var(--line)' }}>
+                  <span style={{ ...F13, color:'var(--muted)' }}>● {label}</span>
+                  <b style={{ ...F13, color }}>{COP(value)}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 5. INVENTORY AUDIT ───────────────────────── */}
+        <div className="card" style={{ marginBottom:16 }}>
+          <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--line)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:14, fontWeight:800 }}>Cuadre de inventario</span>
+            <span style={C}>{sortedAudit.length} productos</span>
+          </div>
+          <div style={{ overflowX:'auto' }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  {[['name','Producto'],['cat','Categoría'],['vendidas','Vendidas'],['descontadas','Salidas inv.'],['diferencia','Diferencia'],['valorRiesgo','Valor riesgo']].map(([k,h]) => (
+                    <th key={k} className="sortable" onClick={() => toggleAuditSort(k)}
+                      style={{ cursor:'pointer', userSelect:'none', ...(k === 'valorRiesgo' ? { textAlign:'right' as const } : {}) }}>
+                      {h}{aSuf(k)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedAudit.map((r, i) => (
+                  <tr key={r.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                    <td style={{ ...F13, fontWeight:700 }}>{r.name}</td>
+                    <td><span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:999, background:catColor(r.cat)+'22', color:catColor(r.cat) }}>{r.cat}</span></td>
+                    <td style={C}>{r.vendidas}</td>
+                    <td style={C}>{r.descontadas}</td>
+                    <td>
+                      {r.diferencia === 0
+                        ? <Chip color="var(--green)">Cuadra</Chip>
+                        : <span style={{ fontSize:13, fontWeight:700, color: r.diferencia > 0 ? 'var(--orange)' : 'var(--red)' }}>
+                            {r.diferencia > 0 ? '+' : ''}{r.diferencia}
+                          </span>
+                      }
+                    </td>
+                    <td style={{ textAlign:'right' }}>
+                      {r.diferencia === 0
+                        ? <Chip color="var(--green)">Cuadra</Chip>
+                        : <span style={{ ...F13, fontWeight:700, color:'var(--red)' }}>{COP(r.valorRiesgo)}</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {totalRiesgo > 0 && (
+            <div style={{ padding:'12px 16px', borderTop:'1px solid var(--line)', display:'flex', justifyContent:'flex-end', gap:8 }}>
+              <span style={C}>Total valor en riesgo:</span>
+              <b style={{ color:'var(--red)', fontSize:14 }}>{COP(totalRiesgo)}</b>
+            </div>
+          )}
+        </div>
+
+        {/* ─── 6+7. PAYMENTS + TOP PRODUCTS ─────────────── */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+          {/* Payment methods */}
+          <div className="card" style={{ padding:20 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+              <span style={{ fontSize:14, fontWeight:800 }}>Métodos de pago</span>
+            </div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+              <button className={'fchip' + (payFilter === 'all' ? ' on' : '')} onClick={() => setPayFilter('all')} style={payFilter === 'all' ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}>Todos</button>
+              {PAYMENTS.map(p => (
+                <button key={p.id} className={'fchip' + (payFilter === p.id ? ' on' : '')}
+                  style={payFilter === p.id ? { background:p.color, borderColor:p.color, color:'#0b0a12' } : undefined}
+                  onClick={() => setPayFilter(payFilter === p.id ? 'all' : p.id)}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {filtPay.filter(p => p.v > 0).map(p => (
+                <div key={p.id}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <span style={{ ...F13, fontWeight:700, color:p.color }}>{p.name}</span>
+                    <span style={{ ...F13, fontWeight:700 }}>{COP(p.v)}</span>
+                  </div>
+                  <div style={{ height:8, borderRadius:4, background:'var(--border)' }}>
+                    <div style={{ height:'100%', width:`${Math.round(p.v/maxPay*100)}%`, borderRadius:4, background:p.color, transition:'width .4s' }} />
+                  </div>
+                </div>
+              ))}
+              {payTotal > 0 && (
+                <div style={{ display:'flex', justifyContent:'space-between', paddingTop:8, borderTop:'1px solid var(--line)', ...F13 }}>
+                  <span style={C}>Total filtrado</span>
+                  <b>{COP(filtPay.reduce((a, p) => a + p.v, 0))}</b>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Top products */}
+          <div className="card" style={{ padding:20 }}>
+            <span style={{ fontSize:14, fontWeight:800, display:'block', marginBottom:14 }}>Productos más vendidos</span>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+              {topCats.map(c => (
+                <button key={c} className={'fchip' + (topCat === c ? ' on' : '')}
+                  style={topCat === c ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined}
+                  onClick={() => setTopCat(c)}>
+                  {c === 'all' ? 'Todas' : c}
+                </button>
+              ))}
+            </div>
+            <table className="tbl">
+              <thead><tr><th>Producto</th><th style={{ textAlign:'right' }}>Cant.</th><th style={{ textAlign:'right' }}>Venta</th></tr></thead>
+              <tbody>
+                {filtTopProds.slice(0, 10).map((p, i) => (
+                  <tr key={p.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                    <td style={{ ...F13, fontWeight: i === 0 ? 700 : 400 }}>{i+1}. {p.name}</td>
+                    <td style={{ ...C, textAlign:'right' }}>{p.cant}</td>
+                    <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COPk(p.venta)}</td>
+                  </tr>
+                ))}
+                {filtTopProds.length === 0 && (
+                  <tr><td colSpan={3} style={{ textAlign:'center', ...C, padding:20 }}>Sin ventas</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ─── 8. EMPLOYEE STATS ────────────────────────── */}
+        <div className="card" style={{ marginBottom:16 }}>
+          <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--line)' }}>
+            <span style={{ fontSize:14, fontWeight:800 }}>Ventas por empleado</span>
+          </div>
+          <div style={{ padding:'12px 16px', display:'flex', gap:6, flexWrap:'wrap', borderBottom:'1px solid var(--line)' }}>
+            <button className={'fchip' + (empFilter === 'all' ? ' on' : '')} style={empFilter === 'all' ? { background:'var(--accent)', borderColor:'var(--accent)', color:'#0b0a12' } : undefined} onClick={() => setEmpFilter('all')}>Todos</button>
+            {empStats.map(e => (
+              <button key={e.id} className={'fchip' + (empFilter === e.id ? ' on' : '')}
+                style={empFilter === e.id ? { background:e.color, borderColor:e.color, color:'#0b0a12' } : undefined}
+                onClick={() => setEmpFilter(empFilter === e.id ? 'all' : e.id)}>
+                {e.name}
+              </button>
+            ))}
+          </div>
+          <table className="tbl">
+            <thead><tr><th>Empleado</th><th style={{ textAlign:'right' }}>Mesas</th><th style={{ textAlign:'right' }}>Recaudado</th></tr></thead>
+            <tbody>
+              {filtEmpStats.map((e, i) => (
+                <tr key={e.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                  <td>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <Avatar name={e.name} color={e.color} size="sm" />
+                      <b style={F13}>{e.name}</b>
+                    </div>
+                  </td>
+                  <td style={{ ...C, textAlign:'right' }}>{e.mesas}</td>
+                  <td style={{ ...F13, fontWeight:700, textAlign:'right', color:'var(--green)' }}>{COP(e.recaudado)}</td>
+                </tr>
+              ))}
+              {filtEmpStats.length === 0 && (
+                <tr><td colSpan={3} style={{ textAlign:'center', ...C, padding:20 }}>Sin datos de empleados</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ─── 9. TURN DETAIL ───────────────────────────── */}
+        {shiftRows.length > 0 && (
+          <div className="card" style={{ marginBottom:16 }}>
+            <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--line)' }}>
+              <span style={{ fontSize:14, fontWeight:800 }}>Detalle de mesas por turno</span>
+            </div>
+            <table className="tbl">
+              <thead><tr><th>Turno</th><th style={{ textAlign:'right' }}>Mesas</th><th style={{ textAlign:'right' }}>Total</th></tr></thead>
+              <tbody>
+                {shiftRows.map((s, i) => (
+                  <tr key={s.id} style={i % 2 === 1 ? { background:'var(--panel2)' } : undefined}>
+                    <td style={{ ...F13, maxWidth:360 }}>{s.label}</td>
+                    <td style={{ ...C, textAlign:'right' }}>{s.mesas}</td>
+                    <td style={{ ...F13, fontWeight:700, textAlign:'right' }}>{COP(s.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ─── 10. ALERT BANNER ─────────────────────────── */}
+        {totalRiesgo > 100000 && (
+          <div style={{
+            display:'flex', gap:12, padding:'12px 16px', borderRadius:10, marginBottom:16,
+            background:'color-mix(in srgb,var(--red) 12%,transparent)',
+            border:'1px solid color-mix(in srgb,var(--red) 30%,transparent)',
+            borderLeft:'3px solid var(--red)',
+          }}>
+            <span style={{ color:'var(--red)', flexShrink:0, marginTop:1 }}><Icon name="alert" s={18} /></span>
+            <div style={F13}>
+              <b style={{ color:'var(--red)' }}>El inventario no cuadra en {descuadreCount} producto(s).</b>
+              <span style={C}> Salieron más unidades de las vendidas — posible merma, consumo interno o venta sin registrar. </span>
+              <b>Valor en riesgo: <span style={{ color:'var(--red)' }}>{COP(totalRiesgo)}</span></b>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
