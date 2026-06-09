@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Avatar } from '@/components/ui/Avatar';
 import { Chip } from '@/components/ui/Chip';
 import { useToast } from '@/components/ui/ToastContext';
+import { ExpenseReports } from '@/components/admin/ExpenseReports';
 import { COP, COPk, exportCSV, presetRange, rangeLabel, isoDate, parseISO, MES_ES } from '@/lib/utils';
 import type { Sale, SaleItem, Product, Shift, Profile } from '@/types/db';
 
@@ -1236,6 +1237,8 @@ export function AdminReportes({ comercioId, comercioName }: AdminReportesProps) 
             </div>
           </div>
         )}
+
+        <ExpenseReports comercioId={comercioId} comercioName={comercioName} />
       </div>
     </>
   );

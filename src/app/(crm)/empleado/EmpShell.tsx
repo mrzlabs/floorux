@@ -16,6 +16,7 @@ function createNav(comercioName: string, unreadCount?: number) {
     { href: '/empleado/mesas', label: 'Mesas', icon: 'mesas', title: 'Mesas', sub: `Abre, despacha y cobra · ${comercioName}` },
     { href: '/empleado/turno', label: 'Mi turno', icon: 'clock', title: 'Mi turno', sub: `Resumen y cierre · ${comercioName}` },
     { href: '/empleado/historial', label: 'Historial', icon: 'history', title: 'Mi historial', sub: `Lo que has vendido · ${comercioName}` },
+    { href: '/empleado/gastos', label: 'Gastos', icon: 'receipt', title: 'Mis gastos', sub: `Registro y evidencias · ${comercioName}` },
     { href: '/empleado/soporte', label: 'Soporte', icon: 'chat', title: 'Soporte', sub: `Solicita ayuda al equipo · ${comercioName}`, count: unreadCount },
     { href: '/empleado/chat', label: 'Chat', icon: 'chat', title: 'Chat interno', sub: `Admin y Super Admin enlazados · ${comercioName}` },
   ];
@@ -25,6 +26,7 @@ const TIPS: Record<string, string[]> = {
   mesas: ['Toca una mesa libre para abrirla con un alias.', 'Cada producto que sumas baja del inventario.', 'Crea las mesas que necesites con "Crear mesa".'],
   turno: ['Cierra todas las mesas antes de cerrar el turno.'],
   historial: ['Aquí queda todo lo que cobraste.'],
+  gastos: ['Registra cada gasto con una evidencia JPG, PNG o PDF.', 'Solo puedes consultar tus propios registros.'],
   soporte: ['Envía tus consultas al equipo de soporte. Te responderemos pronto.', 'Puedes ver el estado de tus solicitudes y las respuestas recibidas.'],
   chat: ['Escribe al administrador o al dueño enlazado al comercio.'],
 };

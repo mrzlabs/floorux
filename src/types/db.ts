@@ -89,6 +89,22 @@ export interface InventoryMovement {
   created_at: string;
 }
 
+export interface Expense {
+  id: string;
+  comercio_id: string;
+  fecha: string;
+  tipo_gasto: string;
+  valor: number;
+  observacion: string | null;
+  evidencia_path: string;
+  evidencia_nombre: string;
+  evidencia_tipo: 'image/jpeg' | 'image/png' | 'application/pdf';
+  usuario_id: string;
+  created_at: string;
+  updated_at: string;
+  creator?: Pick<Profile, 'id' | 'full_name' | 'color'> | null;
+}
+
 export interface Mesa {
   id: string;
   comercio_id: string;
