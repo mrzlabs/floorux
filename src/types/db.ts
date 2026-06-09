@@ -59,6 +59,8 @@ export interface Product {
   stock: number;
   min_stock: number;
   initial_stock: number;
+  created_by: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -86,6 +88,7 @@ export interface InventoryMovement {
   new_stock: number;
   reason: string;
   source: string;
+  observation: string | null;
   created_at: string;
 }
 

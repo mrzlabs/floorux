@@ -264,58 +264,40 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       return;
     }
 
-    // 1. Optimistic update: descontar inmediatamente del estado local
-    setProducts(prev => prev.map(p =>
-      p.id === product.id
-        ? { ...p, stock: p.stock - 1 }
-        : p
-    ));
+    const { data: newStock, error } = await supabase.rpc('add_product_to_mesa', {
+      p_mesa_id: selectedMesa.id,
+      p_product_id: product.id,
+    });
 
-    // 2. Persistir en BD (async con validación)
-    const { error: stockError } = await supabase
-      .from('products')
-      .update({ stock: product.stock - 1 })
-      .eq('id', product.id)
-      .gt('stock', 0);
-
-    if (stockError) {
-      // 3. Revertir si falla
-      setProducts(prev => prev.map(p =>
-        p.id === product.id
-          ? { ...p, stock: p.stock + 1 }
-          : p
-      ));
-      toast('Error al actualizar inventario', 'alert');
+    if (error) {
+      toast(error.message.includes('insufficient_stock') ? 'Producto agotado' : 'Error al actualizar inventario', 'alert');
       return;
     }
 
-    // 4. Agregar a mesa_items
     const existing = selectedMesa.items.find(i => i.product_id === product.id);
-    if (existing) {
-      const newQty = existing.qty + 1;
-      await supabase
-        .from('mesa_items')
-        .update({ qty: newQty })
-        .eq('mesa_id', selectedMesa.id)
-        .eq('product_id', product.id);
-    } else {
-      await supabase.from('mesa_items').insert({
-        mesa_id: selectedMesa.id,
-        product_id: product.id,
-        qty: 1,
-        unit_price: product.price,
-        unit_cost: product.cost,
-      });
-    }
+    setProducts(prev => prev.map(p =>
+      p.id === product.id ? { ...p, stock: Number(newStock) } : p
+    ));
+    setSelectedMesa(prev => prev ? {
+      ...prev,
+      items: existing
+        ? prev.items.map(item => item.product_id === product.id ? { ...item, qty: item.qty + 1 } : item)
+        : [...prev.items, {
+            product_id: product.id,
+            name: product.name,
+            price: product.price,
+            cost: product.cost,
+            qty: 1,
+            tracked: true,
+          }],
+    } : prev);
 
-    // 5. Trigger animación productAdd
     const card = document.querySelector(`[data-product-id="${product.id}"]`);
     if (card) {
       card.classList.add('product-add-animation');
       setTimeout(() => card.classList.remove('product-add-animation'), 200);
     }
 
-    // 6. Trigger total flash
     setTotalFlash(true);
     setTimeout(() => setTotalFlash(false), 300);
   }
@@ -337,47 +319,33 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       return;
     }
 
-    const newQty = item.qty + delta;
-
-    // Obtener producto actual para calcular nuevo stock
     const product = products.find(p => p.id === item.product_id);
     if (!product) return;
 
-    // Aumentando cantidad: descontar del inventario
     if (product.stock <= 0) {
       toast('Producto agotado', 'alert');
       return;
     }
 
-    // Optimistic update
-    setProducts(prev => prev.map(p =>
-      p.id === item.product_id
-        ? { ...p, stock: p.stock - 1 }
-        : p
-    ));
-
-    const { error } = await supabase
-      .from('products')
-      .update({ stock: product.stock - 1 })
-      .eq('id', item.product_id)
-      .gt('stock', 0);
+    const { data: newStock, error } = await supabase.rpc('add_product_to_mesa', {
+      p_mesa_id: selectedMesa.id,
+      p_product_id: item.product_id,
+    });
 
     if (error) {
-      // Revertir
-      setProducts(prev => prev.map(p =>
-        p.id === item.product_id
-          ? { ...p, stock: p.stock + 1 }
-          : p
-      ));
       toast('Error al actualizar inventario', 'alert');
       return;
     }
 
-    await supabase
-      .from('mesa_items')
-      .update({ qty: newQty })
-      .eq('mesa_id', selectedMesa.id)
-      .eq('product_id', item.product_id);
+    setProducts(prev => prev.map(p =>
+      p.id === item.product_id ? { ...p, stock: Number(newStock) } : p
+    ));
+    setSelectedMesa(prev => prev ? {
+      ...prev,
+      items: prev.items.map(current =>
+        current.product_id === item.product_id ? { ...current, qty: current.qty + 1 } : current
+      ),
+    } : prev);
   }
 
   async function removeItem(item: CartItem, motivo: string) {

@@ -65,7 +65,12 @@ export function AdminInventario({ comercioId, comercioName = 'Comercio' }: Admin
   }, [showExport]);
 
   async function load() {
-    const { data } = await supabase.from('products').select('*').eq('comercio_id', comercioId).order('name');
+    const { data } = await supabase
+      .from('products')
+      .select('*')
+      .eq('comercio_id', comercioId)
+      .is('deleted_at', null)
+      .order('name');
     setProducts((data ?? []) as Product[]);
   }
 
@@ -104,6 +109,20 @@ export function AdminInventario({ comercioId, comercioName = 'Comercio' }: Admin
     await supabase.from('products').update({ stock: restocking.stock + Number(restockQty) }).eq('id', restocking.id);
     toast(`${restocking.name} +${restockQty}`, 'check');
     setRestocking(null); setRestockQty('');
+    await load();
+  }
+
+  async function removeProduct(product: Product) {
+    if (!window.confirm(`Eliminar ${product.name} del inventario`)) return;
+    const { error } = await supabase
+      .from('products')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', product.id);
+    if (error) {
+      toast('No se pudo eliminar el producto', 'alert');
+      return;
+    }
+    toast('Producto eliminado', 'check');
     await load();
   }
 
@@ -436,6 +455,9 @@ export function AdminInventario({ comercioId, comercioName = 'Comercio' }: Admin
                         </button>
                         <button className="btn sm ghost" onClick={() => openEdit(p)} title="Editar">
                           <Icon name="edit" s={13} />
+                        </button>
+                        <button className="btn sm ghost" onClick={() => removeProduct(p)} title="Eliminar">
+                          <Icon name="trash" s={13} />
                         </button>
                       </div>
                     </td>

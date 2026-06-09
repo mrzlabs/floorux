@@ -14,6 +14,7 @@ const DEFAULT_PALETTE = { accent: '#7F77DD', accent2: '#27C3D8', accent3: '#B57B
 function createNav(comercioName: string, unreadCount?: number) {
   return [
     { href: '/empleado/mesas', label: 'Mesas', icon: 'mesas', title: 'Mesas', sub: `Abre, despacha y cobra · ${comercioName}` },
+    { href: '/empleado/inventario', label: 'Inventario', icon: 'box', title: 'Inventario', sub: `Consulta y reabastecimiento · ${comercioName}` },
     { href: '/empleado/turno', label: 'Mi turno', icon: 'clock', title: 'Mi turno', sub: `Resumen y cierre · ${comercioName}` },
     { href: '/empleado/historial', label: 'Historial', icon: 'history', title: 'Mi historial', sub: `Lo que has vendido · ${comercioName}` },
     { href: '/empleado/gastos', label: 'Gastos', icon: 'receipt', title: 'Mis gastos', sub: `Registro y evidencias · ${comercioName}` },
@@ -24,6 +25,7 @@ function createNav(comercioName: string, unreadCount?: number) {
 
 const TIPS: Record<string, string[]> = {
   mesas: ['Toca una mesa libre para abrirla con un alias.', 'Cada producto que sumas baja del inventario.', 'Crea las mesas que necesites con "Crear mesa".'],
+  inventario: ['Consulta existencias y registra únicamente entradas positivas.', 'Usa Agregar a mesa para descontar una unidad mediante el flujo operativo.'],
   turno: ['Cierra todas las mesas antes de cerrar el turno.'],
   historial: ['Aquí queda todo lo que cobraste.'],
   gastos: ['Registra cada gasto con una evidencia JPG, PNG o PDF.', 'Solo puedes consultar tus propios registros.'],
