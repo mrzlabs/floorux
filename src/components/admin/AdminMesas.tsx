@@ -76,6 +76,7 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
   const [addQty, setAddQty] = useState(1);
   const [addMotivo, setAddMotivo] = useState('');
   const [addMotivoCustom, setAddMotivoCustom] = useState('');
+  const [adding, setAdding] = useState(false);
 
   // Modal: Eliminar con nota
   const [showRemoveNota, setShowRemoveNota] = useState(false);
@@ -158,6 +159,11 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
         })
       );
       setMesas(mesasWithAudit);
+      setSelectedMesa(current =>
+        current
+          ? mesasWithAudit.find(mesa => mesa.id === current.id) ?? current
+          : current
+      );
     }
   }
 
@@ -277,7 +283,7 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
   }
 
   async function confirmarAgregar() {
-    if (!selectedMesa || !selectedProduct) return;
+    if (!selectedMesa || !selectedProduct || adding) return;
 
     const motivoFinal = addMotivo === 'Otro' ? addMotivoCustom : addMotivo;
     if (!motivoFinal.trim()) {
@@ -285,53 +291,100 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
       return;
     }
 
-    if (selectedProduct.stock < addQty) {
+    if (!Number.isInteger(addQty) || addQty < 1 || selectedProduct.stock < addQty) {
       toast('Stock insuficiente', 'alert');
       return;
     }
 
-    // Descontar stock
-    await supabase
-      .from('products')
-      .update({ stock: selectedProduct.stock - addQty })
-      .eq('id', selectedProduct.id);
+    setAdding(true);
 
-    // Agregar o actualizar mesa_items
-    const existing = selectedMesa.items.find(i => i.product_id === selectedProduct.id);
-    if (existing) {
-      await supabase
-        .from('mesa_items')
-        .update({ qty: existing.qty + addQty })
-        .eq('mesa_id', selectedMesa.id)
-        .eq('product_id', selectedProduct.id);
-    } else {
-      await supabase.from('mesa_items').insert({
-        mesa_id: selectedMesa.id,
-        product_id: selectedProduct.id,
-        qty: addQty,
-        unit_price: selectedProduct.price,
-        unit_cost: selectedProduct.cost,
+    let addedQty = 0;
+    let resultingStock = selectedProduct.stock;
+
+    try {
+      for (let index = 0; index < addQty; index += 1) {
+        const { data, error } = await supabase.rpc('add_product_to_mesa', {
+          p_mesa_id: selectedMesa.id,
+          p_product_id: selectedProduct.id,
+        });
+
+        if (error) throw error;
+        addedQty += 1;
+        resultingStock = Number(data);
+      }
+
+      const { error: auditError } = await supabase.from('audit_logs').insert({
+        actor_id: adminId,
+        actor_role: 'admin',
+        action: 'UPDATE',
+        table_name: 'mesa_items',
+        record_id: selectedMesa.id,
+        payload: {
+          operation: 'ADD_ITEM_ADMIN',
+          product_name: selectedProduct.name,
+          qty: addedQty,
+          motivo: motivoFinal.trim(),
+          mesa_name: selectedMesa.name,
+          empleado_id: selectedMesa.opened_by,
+        },
       });
+
+      if (auditError) throw auditError;
+
+      const existing = selectedMesa.items.find(item => item.product_id === selectedProduct.id);
+      const updatedMesa: LocalMesa = {
+        ...selectedMesa,
+        admin_modified: true,
+        items: existing
+          ? selectedMesa.items.map(item =>
+              item.product_id === selectedProduct.id
+                ? { ...item, qty: item.qty + addedQty }
+                : item
+            )
+          : [
+              ...selectedMesa.items,
+              {
+                product_id: selectedProduct.id,
+                name: selectedProduct.name,
+                price: selectedProduct.price,
+                cost: selectedProduct.cost,
+                qty: addedQty,
+                tracked: selectedProduct.min_stock > 0,
+              },
+            ],
+      };
+
+      setProducts(current =>
+        current.map(product =>
+          product.id === selectedProduct.id
+            ? { ...product, stock: resultingStock }
+            : product
+        )
+      );
+      setMesas(current =>
+        current.map(mesa => mesa.id === updatedMesa.id ? updatedMesa : mesa)
+      );
+      setSelectedMesa(updatedMesa);
+      setShowAddNota(false);
+      toast('Producto agregado con nota de auditoría', 'check');
+    } catch (error) {
+      if (addedQty > 0) {
+        await loadMesas();
+        await loadProducts();
+        setShowAddNota(false);
+        toast(`Se agregaron ${addedQty} unidades. Revisa la auditoría`, 'alert');
+      } else {
+        const message = error instanceof Error ? error.message : '';
+        toast(
+          message.includes('insufficient_stock')
+            ? 'Stock insuficiente'
+            : 'No se pudo agregar el producto',
+          'alert'
+        );
+      }
+    } finally {
+      setAdding(false);
     }
-
-    // Audit log
-    await supabase.from('audit_logs').insert({
-      actor_id: adminId,
-      actor_role: 'admin',
-      action: 'ADD_ITEM_ADMIN',
-      table_name: 'mesa_items',
-      record_id: selectedMesa.id,
-      payload: {
-        product_name: selectedProduct.name,
-        qty: addQty,
-        motivo: motivoFinal,
-        mesa_name: selectedMesa.name,
-        empleado_id: selectedMesa.opened_by,
-      },
-    });
-
-    toast('Producto agregado con nota de auditoría', 'check');
-    setShowAddNota(false);
   }
 
   function handleReduceQty(item: CartItem) {
@@ -1047,11 +1100,11 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
           </Field>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button className="btn" onClick={() => setShowAddNota(false)} style={{ flex: 1 }}>
+            <button type="button" className="btn" onClick={() => setShowAddNota(false)} style={{ flex: 1 }} disabled={adding}>
               Cancelar
             </button>
-            <button className="btn pri" onClick={confirmarAgregar} style={{ flex: 1 }}>
-              Confirmar y agregar
+            <button type="button" className="btn pri" onClick={confirmarAgregar} style={{ flex: 1 }} disabled={adding}>
+              {adding ? 'Agregando...' : 'Confirmar y agregar'}
             </button>
           </div>
         </Modal>
