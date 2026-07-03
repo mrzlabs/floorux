@@ -62,6 +62,8 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
   const [filter, setFilter] = useState<'all' | 'abiertas' | 'libres'>('all');
   const [openingMesa, setOpeningMesa] = useState<LocalMesa | null>(null);
   const [alias, setAlias] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [newMesaName, setNewMesaName] = useState('');
 
   // Modal: POS
   const [selectedMesa, setSelectedMesa] = useState<LocalMesa | null>(null);
@@ -217,6 +219,53 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
     setAlias('');
     setSelectedMesa(openedMesa);
     toast('Mesa abierta por administrador', 'check');
+  }
+
+  async function createMesa() {
+    const name = newMesaName.trim();
+    if (!name) {
+      toast('Escribe un nombre para la mesa', 'alert');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('mesas')
+      .insert({
+        comercio_id: comercioId,
+        name,
+        status: 'libre',
+      })
+      .select('*')
+      .single();
+
+    if (error || !data) {
+      toast('No se pudo crear la mesa', 'alert');
+      return;
+    }
+
+    const mesa = {
+      ...data,
+      items: [],
+      admin_modified: false,
+    } as LocalMesa;
+
+    await supabase.from('audit_logs').insert({
+      actor_id: adminId,
+      actor_role: 'admin',
+      action: 'CREATE_MESA_ADMIN',
+      table_name: 'mesas',
+      record_id: mesa.id,
+      payload: {
+        mesa_name: mesa.name,
+      },
+    });
+
+    setMesas(current => [...current, mesa].sort((a, b) => a.name.localeCompare(b.name)));
+    setCreating(false);
+    setNewMesaName('');
+    setAlias('');
+    setOpeningMesa(mesa);
+    toast('Mesa creada', 'check');
   }
 
   function openAddNota(product: Product) {
@@ -622,7 +671,58 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
             )}
           </div>
         ))}
+
+        <div
+          className="card"
+          style={{
+            padding: 16,
+            cursor: 'pointer',
+            border: '2px dashed var(--line2)',
+            background: 'transparent',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 180,
+          }}
+          onClick={() => {
+            setNewMesaName('');
+            setCreating(true);
+          }}
+        >
+          <Icon name="plus" s={32} />
+          <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>
+            Nueva mesa
+          </div>
+        </div>
       </div>
+
+      {creating && (
+        <Modal title="Nueva mesa" onClose={() => setCreating(false)}>
+          <Field label="Nombre de la mesa">
+            <input
+              className="inp"
+              type="text"
+              placeholder="Ej. Mesa 1, VIP, Terraza"
+              value={newMesaName}
+              onChange={e => setNewMesaName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') createMesa();
+              }}
+              autoFocus
+            />
+          </Field>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button className="btn" onClick={() => setCreating(false)} style={{ flex: 1 }}>
+              Cancelar
+            </button>
+            <button className="btn pri" onClick={createMesa} style={{ flex: 1 }}>
+              Crear y continuar
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {openingMesa && (
         <Modal title={`Abrir ${openingMesa.name}`} onClose={() => setOpeningMesa(null)}>
