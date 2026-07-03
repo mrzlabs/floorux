@@ -97,7 +97,11 @@ export function AdminInventario({ comercioId, comercioName = 'Comercio' }: Admin
       await supabase.from('products').update(p).eq('id', editing.id);
       toast('Producto actualizado', 'check');
     } else {
-      await supabase.from('products').insert({ ...p, comercio_id: comercioId });
+      await supabase.from('products').insert({
+        ...p,
+        comercio_id: comercioId,
+        initial_stock: p.stock,
+      });
       toast('Producto creado', 'check');
     }
     setEditing(null); setAdding(false);

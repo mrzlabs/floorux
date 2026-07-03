@@ -108,6 +108,7 @@ export function EmpInventario({ comercioId, empleadoId }: EmpInventarioProps) {
 
   async function createProduct() {
     const price = Number(form.price);
+    const stock = 0;
     if (!form.name.trim() || !form.cat.trim() || !Number.isFinite(price) || price <= 0) {
       toast('Completa nombre, categoría y precio mayor a cero', 'alert');
       return;
@@ -122,8 +123,8 @@ export function EmpInventario({ comercioId, empleadoId }: EmpInventarioProps) {
       unit: form.unit.trim() || null,
       price,
       cost: 0,
-      stock: 0,
-      initial_stock: 0,
+      stock,
+      initial_stock: stock,
       min_stock: 0,
       dist: null,
       created_by: empleadoId,
@@ -423,4 +424,3 @@ export function EmpInventario({ comercioId, empleadoId }: EmpInventarioProps) {
     </div>
   );
 }
-
