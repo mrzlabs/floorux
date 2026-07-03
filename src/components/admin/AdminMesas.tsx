@@ -60,6 +60,8 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
   const [mesas, setMesas] = useState<LocalMesa[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [filter, setFilter] = useState<'all' | 'abiertas' | 'libres'>('all');
+  const [openingMesa, setOpeningMesa] = useState<LocalMesa | null>(null);
+  const [alias, setAlias] = useState('');
 
   // Modal: POS
   const [selectedMesa, setSelectedMesa] = useState<LocalMesa | null>(null);
@@ -165,6 +167,56 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
       .is('deleted_at', null)
       .order('name');
     if (data) setProducts(data as Product[]);
+  }
+
+  async function openMesa() {
+    if (!openingMesa) return;
+
+    const openedAt = new Date().toISOString();
+    const mesaAlias = alias.trim() || 'Cliente';
+    const { error } = await supabase
+      .from('mesas')
+      .update({
+        status: 'ocupada',
+        alias: mesaAlias,
+        opened_at: openedAt,
+        opened_by: adminId,
+      })
+      .eq('id', openingMesa.id)
+      .eq('comercio_id', comercioId)
+      .eq('status', 'libre');
+
+    if (error) {
+      toast('No se pudo abrir la mesa', 'alert');
+      return;
+    }
+
+    const openedMesa: LocalMesa = {
+      ...openingMesa,
+      status: 'ocupada',
+      alias: mesaAlias,
+      opened_at: openedAt,
+      opened_by: adminId,
+      items: [],
+    };
+
+    await supabase.from('audit_logs').insert({
+      actor_id: adminId,
+      actor_role: 'admin',
+      action: 'OPEN_MESA_ADMIN',
+      table_name: 'mesas',
+      record_id: openingMesa.id,
+      payload: {
+        mesa_name: openingMesa.name,
+        alias: mesaAlias,
+      },
+    });
+
+    setMesas(current => current.map(mesa => mesa.id === openedMesa.id ? openedMesa : mesa));
+    setOpeningMesa(null);
+    setAlias('');
+    setSelectedMesa(openedMesa);
+    toast('Mesa abierta por administrador', 'check');
   }
 
   function openAddNota(product: Product) {
@@ -487,7 +539,7 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
             className="card"
             style={{
               padding: 16,
-              cursor: mesa.status === 'ocupada' ? 'pointer' : 'default',
+              cursor: 'pointer',
               background: mesa.status === 'ocupada'
                 ? 'color-mix(in srgb, var(--accent) 10%, var(--panel))'
                 : 'var(--panel)',
@@ -500,6 +552,9 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
             onClick={() => {
               if (mesa.status === 'ocupada') {
                 setSelectedMesa(mesa);
+              } else {
+                setAlias('');
+                setOpeningMesa(mesa);
               }
             }}
           >
@@ -561,13 +616,40 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)' }}>
-                <Icon name="table" s={32} />
-                <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600 }}>Libre</div>
+                <Icon name="plus" s={32} />
+                <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600 }}>Abrir mesa</div>
               </div>
             )}
           </div>
         ))}
       </div>
+
+      {openingMesa && (
+        <Modal title={`Abrir ${openingMesa.name}`} onClose={() => setOpeningMesa(null)}>
+          <Field label="Alias del cliente o grupo">
+            <input
+              className="inp"
+              type="text"
+              placeholder="Ej. Cumpleaños, Don Jorge"
+              value={alias}
+              onChange={e => setAlias(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') openMesa();
+              }}
+              autoFocus
+            />
+          </Field>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            <button className="btn" onClick={() => setOpeningMesa(null)} style={{ flex: 1 }}>
+              Cancelar
+            </button>
+            <button className="btn pri" onClick={openMesa} style={{ flex: 1 }}>
+              <Icon name="play" s={14} /> Abrir mesa
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {/* Modal POS Admin */}
       {selectedMesa && !showAddNota && !showRemoveNota && !showCerrarNota && (
