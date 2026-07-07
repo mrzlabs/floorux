@@ -7,6 +7,7 @@ import { MayloDock } from '@/components/shell/MayloDock';
 import { applyFullTheme } from '@/hooks/useTheme';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
 import { ToastProvider } from '@/components/ui/ToastContext';
+import { createClient } from '@/lib/supabase/client';
 import type { Profile, Comercio } from '@/types/db';
 
 const TIPS: Record<string, string[]> = {
@@ -65,6 +66,18 @@ export function AdminShell({
   useEffect(() => {
     setCurrentComercio(comercio);
   }, [comercio]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from('comercios')
+      .select('*')
+      .eq('id', comercio.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setCurrentComercio(data as Comercio);
+      });
+  }, [comercio.id]);
 
   useEffect(() => {
     function syncCommerce(event: Event) {
