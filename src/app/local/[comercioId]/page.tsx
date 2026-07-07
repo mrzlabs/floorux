@@ -6,7 +6,7 @@ export default async function PublicLocalPage({ params }: { params: { comercioId
   const admin = createAdminClient();
   const { data: comercio } = await admin
     .from('comercios')
-    .select('id, name, type, city, address, phone, color, photo_url, settings, status')
+    .select('id, name, type, city, address, phone, color, photo_url, commercial_settings, status')
     .eq('id', params.comercioId)
     .maybeSingle();
 

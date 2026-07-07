@@ -13,7 +13,7 @@ interface PublicLocalPanelProps {
     phone: string | null;
     color: string;
     photo_url: string | null;
-    settings: Record<string, unknown>;
+    commercial_settings: Record<string, unknown>;
   };
 }
 
@@ -36,7 +36,7 @@ function getSocialHref(label: string, value: unknown) {
 }
 
 export function PublicLocalPanel({ comercio }: PublicLocalPanelProps) {
-  const commercial = useMemo(() => (comercio.settings?.commercial as Record<string, any>) ?? {}, [comercio.settings]);
+  const commercial = useMemo(() => (comercio.commercial_settings as Record<string, any>) ?? {}, [comercio.commercial_settings]);
   const [mode, setMode] = useState<'registro' | 'ingreso'>('registro');
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '', birthday: '' });

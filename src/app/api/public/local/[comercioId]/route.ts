@@ -28,32 +28,17 @@ const reservationSchema = z.object({
 });
 type ReservationInput = z.infer<typeof reservationSchema>;
 
-function publicCrm(settings: Record<string, unknown>) {
-  const crm = (settings.publicCrm as Record<string, unknown>) ?? {};
-  return {
-    customers: Array.isArray(crm.customers) ? crm.customers as any[] : [],
-    reservations: Array.isArray(crm.reservations) ? crm.reservations as any[] : [],
-  };
-}
-
-function uid(prefix: string) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
 export async function GET(_: NextRequest, { params }: { params: { comercioId: string } }) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('comercios')
-    .select('id, name, type, city, address, phone, color, photo_url, settings, status')
+    .select('id, name, type, city, address, phone, color, photo_url, commercial_settings, status')
     .eq('id', params.comercioId)
     .maybeSingle();
 
   if (error || !data || data.status !== 'activo') {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
-
-  const settings = (data.settings as Record<string, unknown>) ?? {};
-  const commercial = (settings.commercial as Record<string, unknown>) ?? {};
 
   return NextResponse.json({
     comercio: {
@@ -65,7 +50,7 @@ export async function GET(_: NextRequest, { params }: { params: { comercioId: st
       phone: data.phone,
       color: data.color,
       photo_url: data.photo_url,
-      commercial,
+      commercial: data.commercial_settings ?? {},
     },
   });
 }
@@ -78,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: { comercioId:
 
   const { data: comercio, error } = await admin
     .from('comercios')
-    .select('id, settings, status')
+    .select('id, status')
     .eq('id', params.comercioId)
     .maybeSingle();
 
@@ -86,75 +71,67 @@ export async function POST(req: NextRequest, { params }: { params: { comercioId:
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  const settings = (comercio.settings as Record<string, unknown>) ?? {};
-  const crm = publicCrm(settings);
-  const now = new Date().toISOString();
-
   if (parsed.data.type === 'login') {
-    const customer = crm.customers.find(c => String(c.email).toLowerCase() === parsed.data.email.toLowerCase());
+    const { data: customer } = await admin
+      .from('public_customers')
+      .select('*')
+      .eq('comercio_id', params.comercioId)
+      .eq('email', parsed.data.email.toLowerCase())
+      .maybeSingle();
     if (!customer) return NextResponse.json({ error: 'not_registered' }, { status: 404 });
     return NextResponse.json({ customer });
   }
 
+  const now = new Date().toISOString();
+
   if (parsed.data.type === 'register') {
-    const existing = crm.customers.find(c => String(c.email).toLowerCase() === parsed.data.email.toLowerCase());
-    const customer = existing
-      ? { ...existing, name: parsed.data.name, phone: parsed.data.phone, birthday: parsed.data.birthday, last_login: now }
-      : {
-          id: uid('cus'),
-          name: parsed.data.name,
-          email: parsed.data.email.toLowerCase(),
-          phone: parsed.data.phone,
-          birthday: parsed.data.birthday,
-          visits: 0,
-          total_spent: 0,
-          created_at: now,
-          last_login: now,
-        };
-
-    const customers = existing
-      ? crm.customers.map(c => c.id === existing.id ? customer : c)
-      : [customer, ...crm.customers].slice(0, 500);
-
-    const nextSettings = { ...settings, publicCrm: { ...crm, customers } };
-    const { error: updateError } = await admin.from('comercios').update({ settings: nextSettings }).eq('id', params.comercioId);
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+    const { data: customer, error: upsertError } = await admin
+      .from('public_customers')
+      .upsert({
+        comercio_id: params.comercioId,
+        name: parsed.data.name,
+        email: parsed.data.email.toLowerCase(),
+        phone: parsed.data.phone,
+        birthday: parsed.data.birthday,
+        last_login: now,
+      }, { onConflict: 'comercio_id,email' })
+      .select()
+      .single();
+    if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 });
     return NextResponse.json({ customer });
   }
 
   const reservationData = parsed.data as ReservationInput;
-  const existing = crm.customers.find(c => String(c.email).toLowerCase() === reservationData.email.toLowerCase());
-  const customer = existing ?? {
-    id: reservationData.customerId || uid('cus'),
-    name: reservationData.name,
-    email: reservationData.email.toLowerCase(),
-    phone: reservationData.phone,
-    birthday: '',
-    visits: 0,
-    total_spent: 0,
-    created_at: now,
-    last_login: now,
-  };
-  const reservation = {
-    id: uid('res'),
-    customer_id: customer.id,
-    name: reservationData.name,
-    email: reservationData.email.toLowerCase(),
-    phone: reservationData.phone,
-    date: reservationData.date,
-    time: reservationData.time,
-    party_size: reservationData.partySize,
-    notes: reservationData.notes,
-    status: 'solicitada',
-    created_at: now,
-  };
-  const customers = existing
-    ? crm.customers.map(c => c.id === existing.id ? { ...c, name: reservationData.name, phone: reservationData.phone, last_login: now } : c)
-    : [customer, ...crm.customers].slice(0, 500);
-  const reservations = [reservation, ...crm.reservations].slice(0, 500);
-  const nextSettings = { ...settings, publicCrm: { customers, reservations } };
 
-  const { error: updateError } = await admin.from('comercios').update({ settings: nextSettings }).eq('id', params.comercioId);
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  const { data: customer, error: customerError } = await admin
+    .from('public_customers')
+    .upsert({
+      comercio_id: params.comercioId,
+      name: reservationData.name,
+      email: reservationData.email.toLowerCase(),
+      phone: reservationData.phone,
+      last_login: now,
+    }, { onConflict: 'comercio_id,email' })
+    .select()
+    .single();
+  if (customerError) return NextResponse.json({ error: customerError.message }, { status: 500 });
+
+  const { data: reservation, error: reservationError } = await admin
+    .from('public_reservations')
+    .insert({
+      comercio_id: params.comercioId,
+      customer_id: customer.id,
+      name: reservationData.name,
+      email: reservationData.email.toLowerCase(),
+      phone: reservationData.phone,
+      date: reservationData.date,
+      time: reservationData.time,
+      party_size: reservationData.partySize,
+      notes: reservationData.notes,
+    })
+    .select()
+    .single();
+  if (reservationError) return NextResponse.json({ error: reservationError.message }, { status: 500 });
+
   return NextResponse.json({ reservation, customer });
 }
