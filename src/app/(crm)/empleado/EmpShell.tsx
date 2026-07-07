@@ -139,14 +139,6 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
     .toUpperCase()
     .slice(0, 2) || 'FL';
 
-  // roleThumb: foto del comercio en el botón de rol
-  const roleThumb = {
-    src: comercio.photo_url ?? null,
-    color: comercio.color ?? '#7F77DD',
-    initials: bizInitials,
-    label: comercio.name || '',
-  };
-
   return (
     <div className="app">
       <Sidebar
@@ -163,6 +155,7 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         }
         shopColor={profile.color}
         shopImg={profile.avatar_url ?? null}
+        brandSub={comercio.name || 'Comercio'}
         open={sideOpen}
         onClose={() => setSideOpen(false)}
         // brand-mark: foto del comercio
@@ -171,7 +164,6 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={comercio.photo_url ? () => setBrandLightbox(true) : undefined}
         onShopImgClick={profile.avatar_url ? () => setAvatarLightbox(true) : undefined}
-        roleThumb={roleThumb}
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
 

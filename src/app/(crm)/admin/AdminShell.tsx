@@ -65,14 +65,6 @@ export function AdminShell({
 
   const bizInitials = comercio.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
-  // roleThumb: foto del comercio en el botón de rol
-  const roleThumb = {
-    src: comercio.photo_url ?? null,
-    color: comercio.color,
-    initials: bizInitials,
-    label: comercio.name,
-  };
-
   return (
     <div className="app">
       <Sidebar
@@ -83,6 +75,7 @@ export function AdminShell({
         shopSub={`Admin · ${comercio.name}`}
         shopColor={profile.color}
         shopImg={profile.avatar_url ?? null}
+        brandSub={comercio.name}
         open={sideOpen}
         onClose={() => setSideOpen(false)}
         returnPath={returnPath}
@@ -91,7 +84,6 @@ export function AdminShell({
         brandFallbackColor={comercio.color}
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={comercio.photo_url ? () => setBrandLightbox(true) : undefined}
-        roleThumb={roleThumb}
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
 

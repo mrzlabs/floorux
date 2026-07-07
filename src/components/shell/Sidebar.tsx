@@ -16,14 +16,6 @@ interface NavItem {
   badge?: number;
 }
 
-export interface RoleThumb {
-  src?: string | null;
-  color: string;
-  initials: string;
-  label: string;
-  bizIdx?: number;
-}
-
 interface SidebarProps {
   profile: Profile;
   navItems: NavItem[];
@@ -31,6 +23,7 @@ interface SidebarProps {
   shopSub: string | React.ReactNode;
   shopColor: string;
   shopImg?: string | null;
+  brandSub?: string | null;
   onClose?: () => void;
   open?: boolean;
   returnPath?: string | null;
@@ -39,25 +32,16 @@ interface SidebarProps {
   onBrandLogoClick?: () => void;
   brandFallbackColor?: string;
   brandFallbackInitials?: string;
-  roleThumb?: RoleThumb;
   navFooter?: React.ReactNode;
   onShopImgClick?: () => void;
 }
 
-export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopImg, onClose, open, returnPath, brandLogo, onBrandLogoUpload, onBrandLogoClick, brandFallbackColor, brandFallbackInitials, roleThumb, navFooter, onShopImgClick }: SidebarProps) {
+export function Sidebar({ navItems, shopName, shopSub, shopColor, shopImg, brandSub, onClose, open, returnPath, brandLogo, onBrandLogoUpload, onBrandLogoClick, brandFallbackColor, brandFallbackInitials, navFooter, onShopImgClick }: SidebarProps) {
   const pathname = usePathname();
   const [logoHover, setLogoHover] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showShopPhoto, setShowShopPhoto] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const role = profile.role === 'super_super_admin'
-    ? { label: 'Super Root', icon: 'super' }
-    : profile.role === 'super_admin'
-      ? { label: 'Super Admin', icon: 'super' }
-      : profile.role === 'admin'
-        ? { label: 'Admin', icon: 'admin' }
-        : { label: 'Empleado', icon: 'empleado' };
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -114,36 +98,8 @@ export function Sidebar({ profile, navItems, shopName, shopSub, shopColor, shopI
 
         <div>
           <div className="brand-tx">FloorUX<span>.</span></div>
-          <div className="brand-sub">OperUX · CRM</div>
+          <div className="brand-sub">{brandSub || shopName}</div>
         </div>
-      </div>
-
-      {/* rolepick — rol normal o thumbnail de comercio rotante */}
-      <div className="rolepick" aria-label="Rol actual">
-        {roleThumb ? (
-          <button className="on" type="button" disabled style={{ gap: 10, padding: '9px 12px' }}>
-            <span
-              key={roleThumb.bizIdx ?? 0}
-              style={{
-                width: 28, height: 28, borderRadius: 8, overflow: 'hidden', flex: 'none',
-                background: roleThumb.color + '33', color: roleThumb.color,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, fontWeight: 800, animation: 'fade .4s',
-              }}
-            >
-              {roleThumb.src
-                ? <img src={roleThumb.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : roleThumb.initials
-              }
-            </span>
-            <span style={{ fontSize: 11 }}>{roleThumb.label}</span>
-          </button>
-        ) : (
-          <button className="on" type="button" disabled>
-            <Icon name={role.icon} />
-            {role.label}
-          </button>
-        )}
       </div>
 
       <nav className="nav" style={{ flex: 1 }}>

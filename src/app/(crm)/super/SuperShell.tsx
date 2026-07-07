@@ -32,7 +32,6 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [brandLogo, setBrandLogo] = useState('');
   const [comercios, setComercios] = useState<Pick<Comercio, 'id' | 'name' | 'color' | 'photo_url'>[]>([]);
   const [bizIdx, setBizIdx] = useState(0);
   const supportBadge = useSupportBadge(profile.id);
@@ -44,21 +43,8 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   const fire = (msg: string) => { setToast({ msg }); setTimeout(() => setToast(null), 2400); };
   const supabase = createClient();
 
-  // Cargar brandLogo del super_super_admin y comercios del super_admin
+  // Cargar comercios del super_admin
   useEffect(() => {
-    supabase
-      .from('profiles')
-      .select('panel_theme')
-      .eq('role', 'super_super_admin')
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.panel_theme) {
-          const pt = data.panel_theme as Record<string, unknown>;
-          if (typeof pt.brandLogo === 'string' && pt.brandLogo) setBrandLogo(pt.brandLogo);
-        }
-      });
-
     supabase
       .from('comercios')
       .select('id, name, color, photo_url')
@@ -78,13 +64,9 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
   }, [comercios.length]);
 
   const currentBiz = comercios[bizIdx];
-  const roleThumb = currentBiz ? {
-    src: currentBiz.photo_url ?? null,
-    color: currentBiz.color,
-    initials: currentBiz.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase(),
-    label: 'Super Admin',
-    bizIdx,
-  } : undefined;
+  const currentBizInitials = currentBiz
+    ? currentBiz.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
+    : undefined;
 
   const item = NAV.find(n => n.href === '/super/' + view || (view === 'comercios' && n.href === '/super')) ?? NAV[0];
   const nav = NAV.map(n => n.href === '/super/soporte' ? { ...n, badge: supportBadge } : n);
@@ -128,10 +110,12 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
         shopSub={`Super Admin · ${currentBiz?.name ?? profile.email}`}
         shopColor={profile.color}
         shopImg={profile.avatar_url ?? null}
+        brandSub={currentBiz?.name ?? 'Red de comercios'}
         open={sideOpen}
         onClose={() => setSideOpen(false)}
-        brandLogo={brandLogo || null}
-        roleThumb={roleThumb}
+        brandLogo={currentBiz?.photo_url ?? null}
+        brandFallbackColor={currentBiz?.color ?? profile.color}
+        brandFallbackInitials={currentBizInitials ?? 'FX'}
         navFooter={usageWidget}
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
