@@ -175,7 +175,11 @@ export function SuperComercios({ superAdminId }: SuperComerciosProps) {
   async function saveCustomization() {
     if (!customizing) return;
 
-    let photoUrl = customPhoto || null;
+    // Solo se incluye photo_url en el guardado si se subió un archivo nuevo.
+    // customPhoto refleja el estado en memoria (cargado una sola vez, sin
+    // realtime) y puede estar desactualizado frente a una foto subida desde
+    // AdminPerfil; escribirlo siempre aquí borraba esa foto real en la DB.
+    let photoUrl: string | null | undefined;
     if (customFile) {
       const extension = customFile.name.split('.').pop();
       const path = `${superAdminId}/commerce-${customizing.id}-${Date.now()}.${extension}`;
@@ -207,9 +211,12 @@ export function SuperComercios({ superAdminId }: SuperComerciosProps) {
       },
     };
 
+    const patch: { color: string; settings: typeof settings; photo_url?: string | null } = { color: customColor, settings };
+    if (photoUrl !== undefined) patch.photo_url = photoUrl;
+
     const { error } = await supabase
       .from('comercios')
-      .update({ color: customColor, photo_url: photoUrl, settings })
+      .update(patch)
       .eq('id', customizing.id);
     if (error) {
       toast('No se pudo actualizar la apariencia', 'alert');
