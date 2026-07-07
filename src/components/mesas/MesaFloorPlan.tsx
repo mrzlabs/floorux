@@ -96,6 +96,7 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const resizeRef = useRef<{ id: string; startW: number; startH: number; startX: number; startY: number } | null>(null);
   const layoutRef = useRef<Record<string, MesaLayout>>({});
 
   useEffect(() => {
@@ -212,6 +213,38 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
     event.currentTarget.releasePointerCapture(event.pointerId);
     const entry = layoutRef.current[drag.id];
     if (entry) void saveMesaLayout(drag.id, entry);
+  }
+
+  function startResize(event: React.PointerEvent<HTMLDivElement>, mesa: T) {
+    event.stopPropagation();
+    const current = layoutRef.current[mesa.id] ?? defaultLayout(mesas.findIndex(m => m.id === mesa.id));
+    resizeRef.current = { id: mesa.id, startW: current.w, startH: current.h, startX: event.clientX, startY: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveResize(event: React.PointerEvent<HTMLDivElement>) {
+    const resize = resizeRef.current;
+    const plan = planRef.current;
+    if (!resize || !plan) return;
+
+    const rect = plan.getBoundingClientRect();
+    const scaleX = PLAN_W / rect.width;
+    const scaleY = PLAN_H / rect.height;
+    const dw = (event.clientX - resize.startX) * scaleX;
+    const dh = (event.clientY - resize.startY) * scaleY;
+    const current = layoutRef.current[resize.id] ?? defaultLayout(0);
+    const w = clamp(resize.startW + dw, MIN_W, PLAN_W - current.x);
+    const h = clamp(resize.startH + dh, MIN_H, PLAN_H - current.y);
+    setLayout(prev => ({ ...prev, [resize.id]: { ...current, w, h } }));
+  }
+
+  function endResize(event: React.PointerEvent<HTMLDivElement>) {
+    const resize = resizeRef.current;
+    if (!resize) return;
+    resizeRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    const entry = layoutRef.current[resize.id];
+    if (entry) void saveMesaLayout(resize.id, entry);
   }
 
   function setSize(size: 'sm' | 'md' | 'lg') {
@@ -424,6 +457,19 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
                   }}>
                     ADM
                   </span>
+                )}
+
+                {editMode && selectedId === mesa.id && (
+                  <div
+                    onPointerDown={(event) => startResize(event, mesa)}
+                    onPointerMove={moveResize}
+                    onPointerUp={endResize}
+                    style={{
+                      position: 'absolute', right: -6, bottom: -6, width: 18, height: 18,
+                      borderRadius: 6, background: 'var(--accent2)', border: '2px solid var(--panel)',
+                      cursor: 'nwse-resize', touchAction: 'none', zIndex: 2,
+                    }}
+                  />
                 )}
               </div>
             );
