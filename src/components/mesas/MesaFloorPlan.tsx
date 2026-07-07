@@ -95,6 +95,7 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
   const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [fitToScreen, setFitToScreen] = useState(false);
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const resizeRef = useRef<{ id: string; startW: number; startH: number; startX: number; startY: number } | null>(null);
   const layoutRef = useRef<Record<string, MesaLayout>>({});
@@ -297,6 +298,9 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className={'btn sm ghost' + (fitToScreen ? ' pri' : '')} onClick={() => setFitToScreen(f => !f)}>
+            <Icon name="search" s={14} /> {fitToScreen ? 'Tamaño real' : 'Ajustar a pantalla'}
+          </button>
           {editable && (
             <>
               <button className={'btn sm' + (editMode ? ' pri' : '')} onClick={() => setEditMode(!editMode)}>
@@ -344,10 +348,11 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
       <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
         <div
           ref={planRef}
-          className="card floor-plan"
+          className={'card floor-plan' + (fitToScreen ? ' fit-screen' : '')}
           style={{
             position: 'relative',
-            minWidth: 720,
+            minWidth: fitToScreen ? 0 : 720,
+            width: fitToScreen ? '100%' : undefined,
             aspectRatio: `${PLAN_W} / ${PLAN_H}`,
             overflow: 'hidden',
             background:
@@ -497,6 +502,10 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
         @media (max-width: 768px) {
           .floor-plan {
             min-width: 680px !important;
+          }
+          .floor-plan.fit-screen {
+            min-width: 0 !important;
+            width: 100% !important;
           }
         }
       `}</style>
