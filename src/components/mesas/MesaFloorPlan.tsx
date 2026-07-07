@@ -26,8 +26,24 @@ interface MesaLayout {
   y: number;
   w: number;
   h: number;
-  shape: 'rect' | 'round';
+  shape: 'rect' | 'round' | 'square' | 'oval' | 'bar';
 }
+
+const SHAPE_LABELS: Record<MesaLayout['shape'], string> = {
+  rect: 'Rectángulo',
+  round: 'Redonda',
+  square: 'Cuadrada',
+  oval: 'Ovalada',
+  bar: 'Barra',
+};
+
+const SHAPE_RADIUS: Record<MesaLayout['shape'], string> = {
+  rect: '16px',
+  round: '999px',
+  square: '12px',
+  oval: '50%',
+  bar: '10px',
+};
 
 interface MesaFloorPlanProps<T extends MesaPlanLike> {
   comercioId: string;
@@ -208,6 +224,21 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
     patchMesa(selectedId, sizes[size]);
   }
 
+  function setShape(shape: MesaLayout['shape']) {
+    if (!selectedId) return;
+    const current = layoutRef.current[selectedId] ?? defaultLayout(mesas.findIndex(m => m.id === selectedId));
+    const patch: Partial<MesaLayout> = { shape };
+    if (shape === 'square') {
+      const side = Math.max(current.w, current.h);
+      patch.w = side;
+      patch.h = side;
+    } else if (shape === 'bar') {
+      patch.w = 240;
+      patch.h = 88;
+    }
+    patchMesa(selectedId, patch);
+  }
+
   async function resetLayout() {
     const next = Object.fromEntries(mesas.map((mesa, index) => [mesa.id, defaultLayout(index)]));
     setLayout(next);
@@ -261,9 +292,16 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
           <button className="btn sm ghost" disabled={!selected} onClick={() => setSize('sm')}>Compacta</button>
           <button className="btn sm ghost" disabled={!selected} onClick={() => setSize('md')}>Media</button>
           <button className="btn sm ghost" disabled={!selected} onClick={() => setSize('lg')}>Grande</button>
-          <button className="btn sm ghost" disabled={!selected} onClick={() => selectedId && patchMesa(selectedId, { shape: selected?.shape === 'round' ? 'rect' : 'round' })}>
-            Forma
-          </button>
+          {(['rect', 'round', 'square', 'oval', 'bar'] as const).map(shape => (
+            <button
+              key={shape}
+              className={'btn sm ghost' + (selected?.shape === shape ? ' pri' : '')}
+              disabled={!selected}
+              onClick={() => setShape(shape)}
+            >
+              {SHAPE_LABELS[shape]}
+            </button>
+          ))}
           <span style={{ marginLeft: 'auto', fontSize: 12, color: saving ? 'var(--accent)' : 'var(--muted)' }}>
             {saving ? 'Guardando croquis...' : 'Croquis sincronizado'}
           </span>
@@ -314,7 +352,7 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
                   top: `${(pos.y / PLAN_H) * 100}%`,
                   width: `${(Math.max(MIN_W, pos.w) / PLAN_W) * 100}%`,
                   height: `${(Math.max(MIN_H, pos.h) / PLAN_H) * 100}%`,
-                  borderRadius: pos.shape === 'round' ? 999 : 16,
+                  borderRadius: SHAPE_RADIUS[pos.shape],
                   padding: 12,
                   cursor: editMode ? 'grab' : 'pointer',
                   userSelect: 'none',
