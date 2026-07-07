@@ -41,6 +41,8 @@ export interface Comercio {
   renewal_day: number | null;
   subscription_status: 'active' | 'trial' | 'due' | 'suspended' | 'cancelled';
   settings: Record<string, unknown>;
+  commercial_settings: Record<string, unknown>;
+  invoice_settings: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -117,6 +119,17 @@ export interface Mesa {
   opened_at: string | null;
   opened_by: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+export interface MesaLayoutRow {
+  mesa_id: string;
+  comercio_id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  shape: string;
   updated_at: string;
 }
 
