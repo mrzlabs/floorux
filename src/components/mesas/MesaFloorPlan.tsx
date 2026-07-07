@@ -499,6 +499,9 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
         .mesa-card:hover {
           transform: translateY(-1px);
         }
+        .mesa-card:active {
+          transform: scale(.98);
+        }
         @media (max-width: 768px) {
           .floor-plan {
             min-width: 680px !important;

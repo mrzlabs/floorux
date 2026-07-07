@@ -133,6 +133,7 @@ button{font-family:inherit}
 .btn.lg{padding:15px 24px;font-size:16px;border-radius:14px}
 .btn.block{width:100%}
 .btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:active:not(:disabled){transform:scale(.97)}
 
 /* ---------- cards / stats ---------- */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
@@ -202,6 +203,7 @@ button{font-family:inherit}
 .mesas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
 .mesa{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;transition:.16s;min-height:128px;display:flex;flex-direction:column;text-align:left;color:var(--ink)}
 .mesa:hover{transform:translateY(-3px);border-color:var(--line2)}
+.mesa:active{transform:scale(.98)}
 .mesa.libre{border-style:dashed}
 .mesa.ocupada{border-color:color-mix(in srgb,var(--accent) 60%,transparent)}
 .mesa .mname{font-size:15px;font-weight:800}
@@ -238,6 +240,7 @@ button{font-family:inherit}
 .pick-list{flex:1;overflow:auto;padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start}
 .prod{border:1px solid var(--line);background:var(--panel2);border-radius:13px;padding:12px;cursor:pointer;text-align:left;transition:.14s;display:flex;flex-direction:column;gap:3px;position:relative}
 .prod:hover{border-color:var(--accent);transform:translateY(-2px)}
+.prod:active:not(:disabled){transform:scale(.96)}
 .prod:disabled{opacity:.45;cursor:not-allowed;transform:none}
 .prod .pn{font-size:13.5px;font-weight:700;line-height:1.2}
 .prod .pmeta{font-size:11px;color:var(--muted)}
@@ -267,6 +270,7 @@ button{font-family:inherit}
 .pays{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;margin-bottom:14px}
 .pay{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:12px;cursor:pointer;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;transition:.14s}
 .pay:hover{border-color:var(--line2)}
+.pay:active{transform:scale(.97)}
 .pay.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .pay .pdot{width:11px;height:11px;border-radius:50%;flex:none}
 .evidence{display:flex;align-items:center;gap:12px;border:1px dashed var(--line2);border-radius:12px;padding:13px;cursor:pointer;font-size:13px;color:var(--muted);font-weight:600}
