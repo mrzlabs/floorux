@@ -48,6 +48,7 @@ export function AdminShell({
   lowStockCount = 0, operating = false, returnPath = null, children,
 }: AdminShellProps) {
   const supportBadge = useSupportBadge(profile.id);
+  const [currentComercio, setCurrentComercio] = useState(comercio);
   const [sideOpen, setSideOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [dancing, setDancing] = useState(false);
@@ -60,6 +61,20 @@ export function AdminShell({
     applyFullTheme(profile.panel_theme as Record<string, unknown>, profile.color);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setCurrentComercio(comercio);
+  }, [comercio]);
+
+  useEffect(() => {
+    function syncCommerce(event: Event) {
+      const detail = (event as CustomEvent<Partial<Comercio> & { id?: string }>).detail;
+      if (!detail?.id || detail.id !== comercio.id) return;
+      setCurrentComercio(prev => ({ ...prev, ...detail }));
+    }
+    window.addEventListener('floorux:commerce-updated', syncCommerce);
+    return () => window.removeEventListener('floorux:commerce-updated', syncCommerce);
+  }, [comercio.id]);
 
   const nav = [
     { href: '/admin/resumen',    label: 'Resumen',    icon: 'dash',   title: 'Resumen del local',      sub: 'Noche en curso' },
@@ -75,7 +90,7 @@ export function AdminShell({
 
   const item = nav.find(n => n.href.endsWith(view)) ?? nav[0];
 
-  const bizInitials = comercio.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const bizInitials = currentComercio.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <div className="app">
@@ -84,18 +99,18 @@ export function AdminShell({
         navItems={nav}
         // shop footer: foto y nombre del admin (no del comercio)
         shopName={profile.full_name}
-        shopSub={`Admin · ${comercio.name}`}
+        shopSub={`Admin · ${currentComercio.name}`}
         shopColor={profile.color}
         shopImg={profile.avatar_url ?? null}
-        brandSub={comercio.name}
+        brandSub={currentComercio.name}
         open={sideOpen}
         onClose={() => setSideOpen(false)}
         returnPath={returnPath}
         // brand-mark: foto del comercio activo
-        brandLogo={comercio.photo_url ?? null}
-        brandFallbackColor={comercio.color}
+        brandLogo={currentComercio.photo_url ?? null}
+        brandFallbackColor={currentComercio.color}
         brandFallbackInitials={bizInitials}
-        onBrandLogoClick={comercio.photo_url ? () => setBrandLightbox(true) : undefined}
+        onBrandLogoClick={currentComercio.photo_url ? () => setBrandLightbox(true) : undefined}
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
 
@@ -110,7 +125,7 @@ export function AdminShell({
         <div className="content">
           {operating && (
             <div className="operate-banner">
-              <span><b>Modo operación</b> · Administras {comercio.name} con tu sesión principal.</span>
+              <span><b>Modo operación</b> · Administras {currentComercio.name} con tu sesión principal.</span>
               <span>Sesión identificada como operador.</span>
             </div>
           )}
@@ -140,7 +155,7 @@ export function AdminShell({
       {toast && <div className="toast">{toast.msg}</div>}
 
       {/* Lightbox brand-mark */}
-      {brandLightbox && comercio.photo_url && (
+      {brandLightbox && currentComercio.photo_url && (
         <div
           onClick={() => setBrandLightbox(false)}
           style={{
@@ -151,8 +166,8 @@ export function AdminShell({
           }}
         >
           <img
-            src={comercio.photo_url}
-            alt={comercio.name}
+            src={currentComercio.photo_url}
+            alt={currentComercio.name}
             style={{ maxWidth: '80vw', maxHeight: '80vh', borderRadius: 16, objectFit: 'contain', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}
             onClick={e => e.stopPropagation()}
           />

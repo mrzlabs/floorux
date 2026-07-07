@@ -86,14 +86,16 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   }
 
   async function saveBiz() {
-    const { error } = await supabase.from('comercios').update({
+    const patch = {
       name: bizForm.name,
       address: bizForm.address || null,
       phone: bizForm.phone || null,
       nit: bizForm.nit || null,
       color: bizForm.color,
-    }).eq('id', comercio.id);
+    };
+    const { error } = await supabase.from('comercios').update(patch).eq('id', comercio.id);
     if (error) { toast('No se pudo actualizar el local', 'alert'); return; }
+    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, ...patch } }));
     toast('Local actualizado', 'check');
   }
 
@@ -114,8 +116,10 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
     const { error } = await supabase.storage.from('floorux-media').upload(path, file);
     if (error) { toast('No se pudo subir la imagen', 'alert'); return; }
     const { data } = supabase.storage.from('floorux-media').getPublicUrl(path);
-    await supabase.from('comercios').update({ photo_url: data.publicUrl }).eq('id', comercio.id);
+    const { error: updateError } = await supabase.from('comercios').update({ photo_url: data.publicUrl }).eq('id', comercio.id);
+    if (updateError) { toast('No se pudo guardar la foto del comercio', 'alert'); return; }
     setPhotoUrl(data.publicUrl);
+    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, photo_url: data.publicUrl } }));
     toast('Foto del comercio actualizada', 'check');
   }
 
