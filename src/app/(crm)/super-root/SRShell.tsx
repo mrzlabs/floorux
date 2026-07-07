@@ -22,6 +22,45 @@ const NAV = [
   { href: '/super-root/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil y personalización' },
 ];
 
+const HELP: Record<string, { guide: string[]; tips: string[] }> = {
+  dashboard: {
+    guide: ['Revisa actividad global.', 'Detecta comercios o usuarios con comportamiento fuera de rango.', 'Abre la vista específica del módulo afectado.', 'Ejecuta seguimiento hasta confirmar estabilidad.'],
+    tips: ['Prioriza señales de soporte, logs y auditoría.', 'No cambies usuarios sin validar comercio asociado.', 'Usa reportes para confirmar impacto económico.'],
+  },
+  'super-admins': {
+    guide: ['Ubica el super admin.', 'Revisa comercios asignados y estado.', 'Valida datos de contacto.', 'Aplica cambios de acceso solo con trazabilidad.'],
+    tips: ['Mantén responsables claros por red.', 'Revisa últimos accesos antes de suspender.', 'Confirma capacidad del plan antes de ampliar operación.'],
+  },
+  comercios: {
+    guide: ['Filtra o busca el comercio.', 'Revisa estado, responsable y actividad.', 'Abre detalle si requiere corrección.', 'Confirma que la información quede sincronizada.'],
+    tips: ['Agrupa comercios por responsable.', 'Detecta comercios sin actividad reciente.', 'Verifica identidad visual y datos básicos.'],
+  },
+  reportes: {
+    guide: ['Define periodo de análisis.', 'Revisa ingresos, suscripciones y proyección.', 'Compara variaciones entre periodos.', 'Exporta solo cuando los totales estén consistentes.'],
+    tips: ['Usa reportes para decisiones de plan.', 'Cruza ventas con soporte antes de intervenir.', 'Identifica comercios con caída sostenida.'],
+  },
+  usuarios: {
+    guide: ['Busca el usuario.', 'Valida rol y comercio asignado.', 'Revisa estado activo.', 'Actualiza permisos solo si el rol coincide con la operación.'],
+    tips: ['Evita usuarios sin comercio cuando no sean globales.', 'Desactiva accesos vencidos.', 'Revisa duplicados por correo.'],
+  },
+  logs: {
+    guide: ['Filtra por usuario, comercio o acción.', 'Revisa hora y módulo afectado.', 'Compara con el reporte del usuario.', 'Documenta el hallazgo antes de corregir.'],
+    tips: ['Usa logs para auditoría, no para suposiciones.', 'Prioriza acciones destructivas o cambios de permisos.', 'Cruza logs con soporte abierto.'],
+  },
+  auditoria: {
+    guide: ['Selecciona comercio o periodo.', 'Compara inventario contra ventas.', 'Identifica diferencias relevantes.', 'Escala ajuste solo con evidencia.'],
+    tips: ['Busca diferencias repetidas por producto.', 'Revisa cierres de turno antes de ajustar stock.', 'Documenta cualquier corrección manual.'],
+  },
+  soporte: {
+    guide: ['Clasifica solicitudes por impacto.', 'Lee evidencia y contexto.', 'Responde con acción verificable.', 'Cierra cuando el requerimiento tenga solución confirmada.'],
+    tips: ['Prioriza incidentes de operación en vivo.', 'Agrupa fallas repetidas por módulo.', 'Solicita captura si falta evidencia.'],
+  },
+  cuenta: {
+    guide: ['Revisa datos de perfil.', 'Actualiza identidad visual si aplica.', 'Guarda cambios.', 'Confirma que la barra lateral refleje la identidad correcta.'],
+    tips: ['Mantén la identidad global consistente.', 'Evita cambios de marca durante soporte activo.', 'Verifica permisos antes de editar configuración.'],
+  },
+};
+
 interface SRShellProps {
   profile: Profile;
   view: string;
@@ -62,6 +101,7 @@ export function SRShell({ profile, view, children }: SRShellProps) {
 
   const item = NAV.find(n => n.href.includes(view)) ?? NAV[0];
   const nav = NAV.map(n => n.href === '/super-root/soporte' ? { ...n, badge: supportBadge } : n);
+  const helpContent = HELP[view] ?? HELP.dashboard;
 
   return (
     <div className="app sr-shell">
@@ -90,11 +130,10 @@ export function SRShell({ profile, view, children }: SRShellProps) {
         roleLabel="Super Root"
         intro="Soy Maylo, tu asistente global. Te ayudo a supervisar franquiciados, comercios, usuarios, auditorías y actividad del sistema."
         alerts={[]}
-        tips={[
-          'Revisa los logs para identificar cambios críticos.',
-          'Valida comercios inactivos antes de suspender usuarios.',
-          'Usa auditoría para contrastar inventario y ventas.',
-        ]}
+        screenLabel={item.title}
+        guideSteps={helpContent.guide}
+        suggestions={helpContent.tips}
+        tips={helpContent.tips}
         dancing={dancing}
         onDance={() => { setDancing(true); fire('Maylo está activo'); setTimeout(() => setDancing(false), 4800); }}
       />

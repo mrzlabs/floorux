@@ -33,6 +33,16 @@ const TIPS: Record<string, string[]> = {
   chat: ['Escribe al administrador o al dueño enlazado al comercio.'],
 };
 
+const GUIDES: Record<string, string[]> = {
+  mesas: ['Identifica si la mesa está libre u ocupada.', 'Abre mesa con alias cuando inicia consumo.', 'Agrega productos desde el modal y confirma el total.', 'Cobra o cierra la mesa solo cuando el consumo esté completo.'],
+  inventario: ['Busca el producto.', 'Revisa stock disponible y categoría.', 'Registra entrada solo si estás reabasteciendo.', 'Valida que el stock actualizado quede visible.'],
+  turno: ['Revisa ventas y mesas pendientes.', 'Cierra mesas abiertas antes de finalizar.', 'Confirma totales de efectivo y otros medios.', 'Finaliza turno cuando el resumen esté correcto.'],
+  historial: ['Filtra el periodo que necesitas revisar.', 'Abre el registro de venta o mesa.', 'Contrasta productos, pagos y hora.', 'Reporta diferencias al administrador.'],
+  gastos: ['Selecciona concepto y monto.', 'Adjunta evidencia válida.', 'Guarda el gasto.', 'Verifica que aparezca en el historial.'],
+  soporte: ['Describe el bloqueo operativo.', 'Incluye mesa, producto o pantalla afectada.', 'Envía el ticket.', 'Revisa respuesta y estado.'],
+  chat: ['Abre la conversación correcta.', 'Escribe el mensaje con contexto.', 'Envía y confirma que quede en la conversación.', 'Evita duplicar solicitudes ya reportadas por soporte.'],
+};
+
 interface EmpShellProps {
   profile: Profile;
   view: string;
@@ -185,9 +195,12 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         roleLabel="Empleado"
         intro="Soy Maylo, tu asistente de barra. Abre mesas, despacha del inventario y yo te aviso si algo se está agotando."
         alerts={[]}
+        screenLabel={navItem.title}
+        guideSteps={GUIDES[view] ?? []}
+        suggestions={TIPS[view] ?? []}
         tips={TIPS[view] ?? []}
         dancing={dancing}
-        onDance={() => { setDancing(true); fire('¡Eso! 🎺 Maylo está skankin\'', 'spark'); setTimeout(() => setDancing(false), 4800); }}
+        onDance={() => { setDancing(true); fire('Maylo activado', 'spark'); setTimeout(() => setDancing(false), 4800); }}
       />
       <MayloDock onOpen={() => setHelp(true)} message="Estamos listos para comenzar. Abre una mesa o consulta tu turno." />
       {help && <div className="scrim" style={{ zIndex: 85 }} onClick={() => setHelp(false)} />}

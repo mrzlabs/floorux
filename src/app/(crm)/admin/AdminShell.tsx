@@ -21,6 +21,18 @@ const TIPS: Record<string, string[]> = {
   perfil:     ['Sube la foto de tu local.'],
 };
 
+const GUIDES: Record<string, string[]> = {
+  resumen: ['Revisa ventas, mesas activas y alertas de inventario.', 'Prioriza las tarjetas con valores fuera de rango.', 'Abre la vista específica cuando necesites corregir operación.'],
+  mesas: ['Selecciona una mesa libre u ocupada.', 'Agrega productos, registra pagos o cierra la mesa según corresponda.', 'Verifica que la auditoría refleje la acción realizada.'],
+  reportes: ['Define el rango de fechas.', 'Revisa ventas, métodos de pago y rendimiento.', 'Exporta el informe cuando los totales cuadren.'],
+  inventario: ['Busca el producto por nombre o categoría.', 'Revisa stock, costo, precio y margen.', 'Abastece, edita o elimina solo después de validar el producto correcto.'],
+  gastos: ['Filtra por fecha o empleado.', 'Revisa monto, evidencia y concepto.', 'Aprueba correcciones solo con soporte visible.'],
+  empleados: ['Ubica el empleado.', 'Valida rol, comercio y estado activo.', 'Aplica cambios de acceso solo si corresponden a la operación actual.'],
+  chat: ['Selecciona la conversación.', 'Responde con contexto operativo.', 'Confirma que el mensaje quede enviado al equipo correcto.'],
+  soporte: ['Revisa tickets abiertos.', 'Prioriza bloqueos operativos.', 'Responde y actualiza estado cuando la gestión quede resuelta.'],
+  perfil: ['Actualiza datos del comercio.', 'Carga foto o identidad visual del local.', 'Verifica que el sidebar refleje el comercio actualizado.'],
+};
+
 interface AdminShellProps {
   profile: Profile;
   comercio: Comercio;
@@ -112,9 +124,12 @@ export function AdminShell({
         roleLabel="Admin"
         intro="Soy Maylo. Te aviso apenas un producto se va a acabar y te recuerdo cuando un turno se cierra para que nada se te escape."
         alerts={[]}
+        screenLabel={item.title}
+        guideSteps={GUIDES[view] ?? []}
+        suggestions={TIPS[view] ?? []}
         tips={TIPS[view] ?? []}
         dancing={dancing}
-        onDance={() => { setDancing(true); fire('¡Eso! 🎺'); setTimeout(() => setDancing(false), 4800); }}
+        onDance={() => { setDancing(true); fire('Maylo activado'); setTimeout(() => setDancing(false), 4800); }}
       />
       <MayloDock
         onOpen={() => setHelp(true)}

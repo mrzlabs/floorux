@@ -20,6 +20,33 @@ const NAV = [
   { href: '/super/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil del super administrador' },
 ];
 
+const HELP: Record<string, { guide: string[]; tips: string[] }> = {
+  comercios: {
+    guide: ['Revisa el estado de cada comercio.', 'Prioriza comercios sin actividad o con alertas.', 'Entra al comercio que requiere gestión.', 'Confirma que el responsable quede activo.'],
+    tips: ['Compara actividad entre comercios antes de intervenir.', 'Revisa límites del plan si falta capacidad.', 'Usa la cuenta del comercio como fuente principal de operación.'],
+  },
+  reportes: {
+    guide: ['Selecciona el periodo.', 'Compara ventas por comercio.', 'Identifica desviaciones o comercios inactivos.', 'Exporta o comparte el reporte cuando los datos cuadren.'],
+    tips: ['Busca caídas de recaudo antes de revisar detalles.', 'Contrasta métodos de pago con operación real.', 'Prioriza comercios con variación alta.'],
+  },
+  usuarios: {
+    guide: ['Ubica el administrador.', 'Revisa comercio asignado y último acceso.', 'Valida si debe mantenerse activo.', 'Aplica cambios solo si el comercio lo requiere.'],
+    tips: ['Desactiva accesos que ya no operan.', 'Verifica correos antes de crear usuarios.', 'Mantén un administrador responsable por comercio.'],
+  },
+  chat: {
+    guide: ['Selecciona conversación.', 'Lee el contexto previo.', 'Responde con instrucción clara.', 'Confirma seguimiento si hay bloqueo operativo.'],
+    tips: ['Usa chat para coordinación rápida.', 'Escala a soporte si requiere trazabilidad.', 'Evita mezclar temas de comercios distintos.'],
+  },
+  soporte: {
+    guide: ['Revisa tickets abiertos.', 'Clasifica urgencia e impacto.', 'Responde con acción concreta.', 'Cierra cuando el solicitante tenga solución.'],
+    tips: ['Prioriza bloqueos de caja, mesas e inventario.', 'Pide evidencia cuando falten datos.', 'Agrupa incidentes repetidos por comercio.'],
+  },
+  cuenta: {
+    guide: ['Revisa datos del perfil.', 'Actualiza identidad y preferencias.', 'Verifica límites de plan.', 'Guarda y confirma que el panel conserve los cambios.'],
+    tips: ['Mantén datos de contacto actualizados.', 'Revisa uso del plan antes de crear más comercios.', 'Usa una identidad consistente para soporte.'],
+  },
+};
+
 interface SuperShellProps {
   profile: Profile;
   view: string;
@@ -70,6 +97,7 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
 
   const item = NAV.find(n => n.href === '/super/' + view || (view === 'comercios' && n.href === '/super')) ?? NAV[0];
   const nav = NAV.map(n => n.href === '/super/soporte' ? { ...n, badge: supportBadge } : n);
+  const helpContent = HELP[view] ?? HELP.comercios;
 
   const { plan, comercios: usoCom, maxComercios, empleados: usoEmp, maxEmpleados } = planUsage;
   const pctCom = maxComercios >= 999 ? 100 : Math.min(100, (usoCom / maxComercios) * 100);
@@ -131,9 +159,12 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
         roleLabel="Super Admin"
         intro="Soy Maylo, tu copiloto de la red. Vigilo el recaudo de cada comercio y te aviso si alguno se cae o se desconecta."
         alerts={[]}
-        tips={[]}
+        screenLabel={item.title}
+        guideSteps={helpContent.guide}
+        suggestions={helpContent.tips}
+        tips={helpContent.tips}
         dancing={dancing}
-        onDance={() => { setDancing(true); fire('¡Eso! 🎺'); setTimeout(() => setDancing(false), 4800); }}
+        onDance={() => { setDancing(true); fire('Maylo activado'); setTimeout(() => setDancing(false), 4800); }}
       />
       <MayloDock onOpen={() => setHelp(true)} message="Tu red está lista. Abre este panel para revisar alertas y acciones." />
       {help && <div className="scrim" style={{ zIndex: 85 }} onClick={() => setHelp(false)} />}
