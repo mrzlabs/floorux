@@ -76,7 +76,6 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
   const supabase = useMemo(() => createClient(), []);
   const planRef = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState<Record<string, MesaLayout>>({});
-  const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -92,16 +91,16 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
 
     async function loadLayout() {
       const { data } = await supabase
-        .from('comercios')
-        .select('settings')
-        .eq('id', comercioId)
-        .maybeSingle();
+        .from('mesa_layouts')
+        .select('mesa_id, x, y, w, h, shape')
+        .eq('comercio_id', comercioId);
 
       if (!alive) return;
-      const nextSettings = (data?.settings as Record<string, unknown>) ?? {};
-      const tableLayout = (nextSettings.tableLayout as Record<string, MesaLayout>) ?? {};
-      setSettings(nextSettings);
-      setLayout(tableLayout);
+      const next: Record<string, MesaLayout> = {};
+      (data ?? []).forEach(row => {
+        next[row.mesa_id] = { x: row.x, y: row.y, w: row.w, h: row.h, shape: row.shape as MesaLayout['shape'] };
+      });
+      setLayout(next);
     }
 
     loadLayout();
@@ -109,14 +108,25 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
     const channel = supabase
       .channel(`mesa-floor-plan:${comercioId}`)
       .on('postgres_changes', {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
-        table: 'comercios',
-        filter: `id=eq.${comercioId}`,
+        table: 'mesa_layouts',
+        filter: `comercio_id=eq.${comercioId}`,
       }, (payload) => {
-        const nextSettings = (payload.new.settings as Record<string, unknown>) ?? {};
-        setSettings(nextSettings);
-        setLayout((nextSettings.tableLayout as Record<string, MesaLayout>) ?? {});
+        if (payload.eventType === 'DELETE') {
+          const oldRow = payload.old as { mesa_id: string };
+          setLayout(prev => {
+            const next = { ...prev };
+            delete next[oldRow.mesa_id];
+            return next;
+          });
+          return;
+        }
+        const row = payload.new as { mesa_id: string; x: number; y: number; w: number; h: number; shape: string };
+        setLayout(prev => ({
+          ...prev,
+          [row.mesa_id]: { x: row.x, y: row.y, w: row.w, h: row.h, shape: row.shape as MesaLayout['shape'] },
+        }));
       })
       .subscribe();
 
@@ -130,32 +140,32 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
     const missing = mesas.filter(mesa => !layout[mesa.id]);
     if (!missing.length) return;
 
-    setLayout(current => {
-      const next = { ...current };
-      mesas.forEach((mesa, index) => {
-        if (!next[mesa.id]) next[mesa.id] = defaultLayout(index);
-      });
-      return next;
+    const additions: Record<string, MesaLayout> = {};
+    missing.forEach((mesa) => {
+      additions[mesa.id] = defaultLayout(mesas.findIndex(m => m.id === mesa.id));
     });
-  }, [mesas, layout]);
 
-  async function saveLayout(nextLayout: Record<string, MesaLayout>) {
+    setLayout(current => ({ ...current, ...additions }));
+    void supabase
+      .from('mesa_layouts')
+      .upsert(
+        Object.entries(additions).map(([mesa_id, entry]) => ({ mesa_id, comercio_id: comercioId, ...entry })),
+        { onConflict: 'mesa_id' }
+      );
+  }, [mesas, layout, comercioId, supabase]);
+
+  async function saveMesaLayout(id: string, entry: MesaLayout) {
     setSaving(true);
     await supabase
-      .from('comercios')
-      .update({ settings: { ...settings, tableLayout: nextLayout } })
-      .eq('id', comercioId);
-    setSettings(current => ({ ...current, tableLayout: nextLayout }));
+      .from('mesa_layouts')
+      .upsert({ mesa_id: id, comercio_id: comercioId, ...entry }, { onConflict: 'mesa_id' });
     setSaving(false);
   }
 
   function patchMesa(id: string, patch: Partial<MesaLayout>, persist = true) {
-    const next = {
-      ...layoutRef.current,
-      [id]: { ...(layoutRef.current[id] ?? defaultLayout(mesas.findIndex(m => m.id === id))), ...patch },
-    };
-    setLayout(next);
-    if (persist) void saveLayout(next);
+    const nextEntry = { ...(layoutRef.current[id] ?? defaultLayout(mesas.findIndex(m => m.id === id))), ...patch };
+    setLayout(current => ({ ...current, [id]: nextEntry }));
+    if (persist) void saveMesaLayout(id, nextEntry);
   }
 
   function startDrag(event: React.PointerEvent<HTMLDivElement>, mesa: T) {
@@ -184,7 +194,8 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
     if (!drag) return;
     dragRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
-    void saveLayout(layoutRef.current);
+    const entry = layoutRef.current[drag.id];
+    if (entry) void saveMesaLayout(drag.id, entry);
   }
 
   function setSize(size: 'sm' | 'md' | 'lg') {
@@ -197,13 +208,17 @@ export function MesaFloorPlan<T extends MesaPlanLike>({
     patchMesa(selectedId, sizes[size]);
   }
 
-  function resetLayout() {
-    const next = {
-      ...layoutRef.current,
-      ...Object.fromEntries(mesas.map((mesa, index) => [mesa.id, defaultLayout(index)])),
-    };
+  async function resetLayout() {
+    const next = Object.fromEntries(mesas.map((mesa, index) => [mesa.id, defaultLayout(index)]));
     setLayout(next);
-    void saveLayout(next);
+    setSaving(true);
+    await supabase
+      .from('mesa_layouts')
+      .upsert(
+        mesas.map((mesa, index) => ({ mesa_id: mesa.id, comercio_id: comercioId, ...defaultLayout(index) })),
+        { onConflict: 'mesa_id' }
+      );
+    setSaving(false);
   }
 
   const selected = selectedId ? layout[selectedId] : null;
