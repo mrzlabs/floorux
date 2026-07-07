@@ -20,7 +20,8 @@ const NAV = [
   { href: '/super-root/logs', label: 'Logs', icon: 'history', title: 'Logs de auditoría', sub: 'Registro de actividad' },
   { href: '/super-root/auditoria', label: 'Auditoría', icon: 'check', title: 'Auditoría de inventario', sub: 'Cuadre global inventario vs ventas' },
   { href: '/super-root/soporte', label: 'Soporte', icon: 'chat', title: 'Soporte de la red', sub: 'Solicitudes directas de Super Admins' },
-  { href: '/super-root/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil y personalización' },
+  { href: '/super-root/apariencia', label: 'Apariencia', icon: 'spark', title: 'Apariencia', sub: 'Tema y colores de tu panel' },
+  { href: '/super-root/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil y logo de marca' },
 ];
 
 const HELP: Record<string, { guide: string[]; tips: string[] }> = {
@@ -59,6 +60,10 @@ const HELP: Record<string, { guide: string[]; tips: string[] }> = {
   cuenta: {
     guide: ['Revisa datos de perfil.', 'Actualiza identidad visual si aplica.', 'Guarda cambios.', 'Confirma que la barra lateral refleje la identidad correcta.'],
     tips: ['Mantén la identidad global consistente.', 'Evita cambios de marca durante soporte activo.', 'Verifica permisos antes de editar configuración.'],
+  },
+  apariencia: {
+    guide: ['Elige modo claro u oscuro.', 'Selecciona una paleta o define tus propios colores.', 'Ajusta tipografía, densidad y bordes a tu gusto.', 'Guarda para que el cambio persista entre sesiones.'],
+    tips: ['El modo claro/oscuro también se cambia rápido desde el pie del menú.'],
   },
 };
 
