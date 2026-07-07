@@ -36,7 +36,6 @@ export function MayloDock({ onOpen, message, alerts = 0 }: MayloDockProps) {
         </div>
       )}
       <button className="fab" onClick={onOpen} aria-label="Abrir asistente Maylo">
-        <span className="fab-ring" />
         <span className="fab-maylo" ref={ref} />
         {alerts > 0 && <span className="fab-badge">{alerts}</span>}
       </button>
