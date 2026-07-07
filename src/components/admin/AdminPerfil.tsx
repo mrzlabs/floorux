@@ -90,9 +90,8 @@ const DEFAULT_COMMERCIAL: CommercialSettings = {
   campaignGoal: '',
 };
 
-function getCommercial(settings: Record<string, unknown>): CommercialSettings {
-  const current = (settings.commercial as Partial<CommercialSettings>) ?? {};
-  return { ...DEFAULT_COMMERCIAL, ...current };
+function getCommercial(commercialSettings: Record<string, unknown>): CommercialSettings {
+  return { ...DEFAULT_COMMERCIAL, ...(commercialSettings as Partial<CommercialSettings>) };
 }
 
 interface ElectronicInvoiceSettings {
@@ -119,9 +118,8 @@ const DEFAULT_INVOICE: ElectronicInvoiceSettings = {
   contactEmail: '',
 };
 
-function getInvoice(settings: Record<string, unknown>): ElectronicInvoiceSettings {
-  const current = (settings.electronicInvoice as Partial<ElectronicInvoiceSettings>) ?? {};
-  return { ...DEFAULT_INVOICE, ...current };
+function getInvoice(invoiceSettings: Record<string, unknown>): ElectronicInvoiceSettings {
+  return { ...DEFAULT_INVOICE, ...(invoiceSettings as Partial<ElectronicInvoiceSettings>) };
 }
 
 export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfilProps) {
