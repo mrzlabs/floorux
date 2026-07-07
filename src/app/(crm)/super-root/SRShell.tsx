@@ -8,6 +8,7 @@ import { applyFullTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import { createClient } from '@/lib/supabase/client';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
+import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile } from '@/types/db';
 
 const NAV = [
@@ -116,6 +117,13 @@ export function SRShell({ profile, view, children }: SRShellProps) {
         onClose={() => setSideOpen(false)}
         brandLogo={brandLogo || null}
         onBrandLogoUpload={handleBrandLogoUpload}
+        navFooter={
+          <ThemeModeToggle
+            profileId={profile.id}
+            initialMode={pt.mode === 'light' ? 'light' : 'dark'}
+            onModeChange={(mode) => applyFullTheme({ ...pt, mode }, '#B57BE0')}
+          />
+        }
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

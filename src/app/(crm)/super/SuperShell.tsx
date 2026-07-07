@@ -9,6 +9,7 @@ import { ToastProvider } from '@/components/ui/ToastContext';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
 import { usePlanUsage } from '@/hooks/usePlanUsage';
 import { createClient } from '@/lib/supabase/client';
+import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile, Comercio } from '@/types/db';
 
 const NAV = [
@@ -144,7 +145,16 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
         brandLogo={currentBiz?.photo_url ?? null}
         brandFallbackColor={currentBiz?.color ?? profile.color}
         brandFallbackInitials={currentBizInitials ?? 'FX'}
-        navFooter={usageWidget}
+        navFooter={
+          <>
+            <ThemeModeToggle
+              profileId={profile.id}
+              initialMode={(profile.panel_theme as Record<string, unknown>)?.mode === 'light' ? 'light' : 'dark'}
+              onModeChange={(mode) => applyFullTheme({ ...(profile.panel_theme as Record<string, unknown>), mode }, profile.color)}
+            />
+            {usageWidget}
+          </>
+        }
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

@@ -8,6 +8,7 @@ import { applyFullTheme } from '@/hooks/useTheme';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import { createClient } from '@/lib/supabase/client';
+import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile, Comercio } from '@/types/db';
 
 const TIPS: Record<string, string[]> = {
@@ -161,6 +162,13 @@ export function AdminShell({
         brandFallbackColor={currentComercio.color}
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={currentComercio.photo_url ? () => setBrandLightbox(true) : undefined}
+        navFooter={
+          <ThemeModeToggle
+            profileId={profile.id}
+            initialMode={(profile.panel_theme as Record<string, unknown>)?.mode === 'light' ? 'light' : 'dark'}
+            onModeChange={(mode) => applyFullTheme({ ...(profile.panel_theme as Record<string, unknown>), mode }, profile.color)}
+          />
+        }
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
 
