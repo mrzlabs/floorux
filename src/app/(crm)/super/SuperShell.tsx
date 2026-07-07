@@ -18,6 +18,7 @@ const NAV = [
   { href: '/super/usuarios', label: 'Administradores', icon: 'users', title: 'Administradores', sub: 'Usuarios y logueos' },
   { href: '/super/chat', label: 'Chat', icon: 'chat', title: 'Chat', sub: 'Mensajes con tu equipo' },
   { href: '/super/soporte', label: 'Soporte', icon: 'alert', title: 'Soporte', sub: 'Canal directo con Super Root' },
+  { href: '/super/apariencia', label: 'Apariencia', icon: 'spark', title: 'Apariencia', sub: 'Tema y colores de tu panel' },
   { href: '/super/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil del super administrador' },
 ];
 
@@ -45,6 +46,10 @@ const HELP: Record<string, { guide: string[]; tips: string[] }> = {
   cuenta: {
     guide: ['Revisa datos del perfil.', 'Actualiza identidad y preferencias.', 'Verifica límites de plan.', 'Guarda y confirma que el panel conserve los cambios.'],
     tips: ['Mantén datos de contacto actualizados.', 'Revisa uso del plan antes de crear más comercios.', 'Usa una identidad consistente para soporte.'],
+  },
+  apariencia: {
+    guide: ['Elige modo claro u oscuro.', 'Selecciona una paleta o define tus propios colores.', 'Ajusta tipografía, densidad y bordes a tu gusto.', 'Guarda para que el cambio persista entre sesiones.'],
+    tips: ['El modo claro/oscuro también se cambia rápido desde el pie del menú.'],
   },
 };
 
