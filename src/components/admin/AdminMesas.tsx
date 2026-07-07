@@ -5,6 +5,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Field } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/ToastContext';
+import { MesaFloorPlan } from '@/components/mesas/MesaFloorPlan';
 import { COP } from '@/lib/utils';
 import type { Mesa, Product } from '@/types/db';
 
@@ -625,130 +626,23 @@ export function AdminMesas({ comercioId, adminId }: AdminMesasProps) {
         </div>
       </div>
 
-      {/* Grid de mesas */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-          gap: 14,
-          marginBottom: 16,
+      <MesaFloorPlan
+        comercioId={comercioId}
+        mesas={mesasFiltradas}
+        editable
+        onMesaClick={(mesa) => {
+          if (mesa.status === 'ocupada') {
+            setSelectedMesa(mesa);
+          } else {
+            setAlias('');
+            setOpeningMesa(mesa);
+          }
         }}
-        className="mesa-grid"
-      >
-        {mesasFiltradas.map(mesa => (
-          <div
-            key={mesa.id}
-            className="card"
-            style={{
-              padding: 16,
-              cursor: 'pointer',
-              background: mesa.status === 'ocupada'
-                ? 'color-mix(in srgb, var(--accent) 10%, var(--panel))'
-                : 'var(--panel)',
-              border: mesa.status === 'ocupada'
-                ? '2px solid var(--accent)'
-                : '1px solid var(--line)',
-              position: 'relative',
-              minHeight: 180,
-            }}
-            onClick={() => {
-              if (mesa.status === 'ocupada') {
-                setSelectedMesa(mesa);
-              } else {
-                setAlias('');
-                setOpeningMesa(mesa);
-              }
-            }}
-          >
-            {/* Badge status */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                fontSize: 9,
-                fontWeight: 700,
-                padding: '4px 9px',
-                borderRadius: 999,
-                background: mesa.status === 'ocupada' ? 'var(--accent)' : 'var(--muted2)',
-                color: '#fff',
-                textTransform: 'uppercase',
-                letterSpacing: '.06em',
-              }}
-            >
-              {mesa.status === 'ocupada' ? 'ABIERTA' : 'LIBRE'}
-            </div>
-
-            {/* Badge ADM si fue modificada por admin */}
-            {mesa.admin_modified && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 10,
-                  right: 10,
-                  fontSize: 8,
-                  fontWeight: 800,
-                  padding: '3px 7px',
-                  borderRadius: 999,
-                  background: 'var(--accent3)',
-                  color: '#fff',
-                  letterSpacing: '.06em',
-                }}
-              >
-                ADM
-              </div>
-            )}
-
-            {/* Nombre */}
-            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 8 }}>
-              {mesa.name}
-            </div>
-
-            {mesa.status === 'ocupada' ? (
-              <>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
-                  {mesa.alias}
-                </div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--accent)', marginBottom: 6 }}>
-                  {COP(mesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
-                  {mesa.items.reduce((s, i) => s + i.qty, 0)} ítems
-                </div>
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--muted)' }}>
-                <Icon name="plus" s={32} />
-                <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600 }}>Abrir mesa</div>
-              </div>
-            )}
-          </div>
-        ))}
-
-        <div
-          className="card"
-          style={{
-            padding: 16,
-            cursor: 'pointer',
-            border: '2px dashed var(--line2)',
-            background: 'transparent',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 180,
-          }}
-          onClick={() => {
-            setNewMesaName('');
-            setCreating(true);
-          }}
-        >
-          <Icon name="plus" s={32} />
-          <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>
-            Nueva mesa
-          </div>
-        </div>
-      </div>
+        onCreateMesa={() => {
+          setNewMesaName('');
+          setCreating(true);
+        }}
+      />
 
       {creating && (
         <Modal title="Nueva mesa" onClose={() => setCreating(false)}>

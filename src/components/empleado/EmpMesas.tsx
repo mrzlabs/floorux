@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Field } from '@/components/ui/Field';
 import { Chip } from '@/components/ui/Chip';
 import { useToast } from '@/components/ui/ToastContext';
+import { MesaFloorPlan } from '@/components/mesas/MesaFloorPlan';
 import { COP } from '@/lib/utils';
 import type { Mesa, Product, Shift } from '@/types/db';
 
@@ -107,10 +108,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
   const [creating, setCreating] = useState(false);
   const [newMesaName, setNewMesaName] = useState('');
 
-  // Drag & drop
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [mesaOrder, setMesaOrder] = useState<string[]>([]);
-
   const supabase = createClient();
 
   useEffect(() => {
@@ -142,17 +139,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       supabase.removeChannel(itemsChannel);
     };
   }, [comercioId, shiftId]);
-
-  useEffect(() => {
-    const savedOrder = localStorage.getItem(`mesa-order-${comercioId}`);
-    if (savedOrder) {
-      try {
-        setMesaOrder(JSON.parse(savedOrder));
-      } catch (e) {
-        console.error('Error parsing mesa order:', e);
-      }
-    }
-  }, [comercioId]);
 
   async function loadMesas() {
     const { data } = await supabase
@@ -591,32 +577,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
     setEvidenceFile(null);
   }
 
-  // Drag and drop
-  function handleDragStart(mesaId: string) {
-    setDraggedId(mesaId);
-  }
-
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault();
-  }
-
-  function handleDrop(targetId: string) {
-    if (!draggedId || draggedId === targetId) return;
-
-    const newOrder = mesaOrder.length > 0 ? [...mesaOrder] : mesas.map(m => m.id);
-    const draggedIndex = newOrder.indexOf(draggedId);
-    const targetIndex = newOrder.indexOf(targetId);
-
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedId);
-
-    setMesaOrder(newOrder);
-    localStorage.setItem(`mesa-order-${comercioId}`, JSON.stringify(newOrder));
-    setDraggedId(null);
-  }
-
   // Filtros
   const mesasAbiertas = mesas.filter(m => m.status === 'ocupada');
   const mesasLibres = mesas.filter(m => m.status === 'libre');
@@ -626,18 +586,6 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
       : filter === 'libres'
       ? mesasLibres
       : mesas;
-
-  // Ordenar según mesaOrder
-  const mesasOrdenadas = mesaOrder.length > 0
-    ? [...mesasFiltradas].sort((a, b) => {
-        const aIndex = mesaOrder.indexOf(a.id);
-        const bIndex = mesaOrder.indexOf(b.id);
-        if (aIndex === -1 && bIndex === -1) return 0;
-        if (aIndex === -1) return 1;
-        if (bIndex === -1) return -1;
-        return aIndex - bIndex;
-      })
-    : mesasFiltradas;
 
   // Cálculos
   const totalAcumulado = mesasAbiertas.reduce((sum, m) =>
@@ -800,201 +748,19 @@ export function EmpMesas({ comercioId, empleadoId, shiftId, isAdmin = false }: E
         </button>
       </div>
 
-      {/* Grid de mesas */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-          gap: 14,
-          marginBottom: 16,
+      <MesaFloorPlan
+        comercioId={comercioId}
+        mesas={mesasFiltradas}
+        editable={isAdmin}
+        onMesaClick={(mesa) => {
+          if (mesa.status === 'libre') {
+            setOpeningMesa(mesa);
+          } else {
+            setSelectedMesa(mesa);
+          }
         }}
-        className="mesa-grid"
-      >
-        {mesasOrdenadas.map(mesa => (
-          <div
-            key={mesa.id}
-            draggable
-            onDragStart={() => handleDragStart(mesa.id)}
-            onDragOver={handleDragOver}
-            onDrop={() => handleDrop(mesa.id)}
-            className={`mesa-card ${draggedId === mesa.id ? 'dragging' : ''}`}
-            style={{
-              borderRadius: 'var(--r-lg)',
-              padding: 16,
-              cursor: 'pointer',
-              background: mesa.status === 'ocupada'
-                ? 'color-mix(in srgb, var(--accent) 8%, var(--panel))'
-                : 'var(--panel)',
-              border: mesa.status === 'ocupada'
-                ? '2px solid var(--accent)'
-                : '1px solid var(--line)',
-              boxShadow: mesa.status === 'ocupada'
-                ? '0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent), 0 8px 32px color-mix(in srgb, var(--accent) 20%, transparent)'
-                : 'none',
-              position: 'relative',
-              minHeight: 160,
-              overflow: 'hidden',
-            }}
-            onClick={() => {
-              if (mesa.status === 'libre') {
-                setOpeningMesa(mesa);
-              } else {
-                setSelectedMesa(mesa);
-              }
-            }}
-          >
-            {/* Badge status */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                fontSize: 10,
-                fontWeight: 800,
-                padding: '3px 8px',
-                borderRadius: 99,
-                background: mesa.status === 'ocupada' ? 'var(--accent)' : 'var(--panel3)',
-                color: mesa.status === 'ocupada' ? '#fff' : 'var(--muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '.06em',
-              }}
-            >
-              {mesa.status === 'ocupada' ? 'ABIERTA' : 'LIBRE'}
-            </div>
-
-            {/* Nombre */}
-            <div style={{
-              position: 'absolute',
-              top: 10,
-              left: 12,
-              fontWeight: 700,
-              fontSize: 13,
-              color: 'var(--ink)',
-            }}>
-              {mesa.name}
-            </div>
-
-            {mesa.status === 'ocupada' ? (
-              <>
-                {/* Barra de progreso */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  height: 3,
-                  width: `${Math.min((mesa.items.reduce((s, i) => s + i.price * i.qty, 0) / 200000) * 100, 100)}%`,
-                  background: 'linear-gradient(to right, var(--accent), var(--accent2))',
-                }} />
-
-                {/* Contenido mesa abierta */}
-                <div style={{ paddingTop: 36 }}>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
-                    {mesa.alias}
-                  </div>
-                  <div style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    color: 'var(--ink)',
-                    letterSpacing: '-0.03em',
-                    marginBottom: 6,
-                  }}>
-                    {COP(mesa.items.reduce((s, i) => s + i.price * i.qty, 0))}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
-                    {(() => {
-                      if (!mesa.opened_at) return '· ' + mesa.items.reduce((s, i) => s + i.qty, 0) + ' ítems';
-                      const start = new Date(mesa.opened_at).getTime();
-                      const now = Date.now();
-                      const diff = now - start;
-                      const hours = Math.floor(diff / 3600000);
-                      const minutes = Math.floor((diff % 3600000) / 60000);
-                      const itemCount = mesa.items.reduce((s, i) => s + i.qty, 0);
-                      return `⏱ ${hours}h ${minutes}m · ${itemCount} ítems`;
-                    })()}
-                  </div>
-
-                  {/* Chips de productos */}
-                  {mesa.items.length > 0 && (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {mesa.items.slice(0, 3).map((item, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: 99,
-                            background: 'color-mix(in srgb, var(--accent) 20%, transparent)',
-                            color: 'var(--accent)',
-                            height: 22,
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          {item.name}
-                        </span>
-                      ))}
-                      {mesa.items.length > 3 && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: 99,
-                            background: 'var(--accent)',
-                            color: '#fff',
-                            height: 22,
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          +{mesa.items.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                paddingTop: 30,
-                gap: 8,
-              }}>
-                <Icon name="plus" s={32} color="var(--muted)" />
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>Abrir</div>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {/* Tarjeta nueva mesa */}
-        <div
-          className="mesa-card"
-          style={{
-            borderRadius: 'var(--r-lg)',
-            padding: 16,
-            cursor: 'pointer',
-            border: '2px dashed var(--line2)',
-            background: 'transparent',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 160,
-          }}
-          onClick={() => setCreating(true)}
-        >
-          <Icon name="plus" s={32} color="var(--muted)" />
-          <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>
-            Nueva mesa
-          </div>
-        </div>
-      </div>
+        onCreateMesa={isAdmin ? () => setCreating(true) : undefined}
+      />
 
       {/* Modal: Abrir mesa */}
       {openingMesa && (
