@@ -11,6 +11,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )floorux_theme=([^;]*)/);if(!m)return;var t=JSON.parse(decodeURIComponent(m[1]));var r=document.documentElement;r.setAttribute('data-theme',t.mode==='light'?'light':'dark');if(Array.isArray(t.palette)&&t.palette.length===3){r.style.setProperty('--accent',t.palette[0]);r.style.setProperty('--accent2',t.palette[1]);r.style.setProperty('--accent3',t.palette[2]);}}catch(e){}})();`,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;600;700;800&family=Syne:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />

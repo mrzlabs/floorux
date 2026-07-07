@@ -1,6 +1,14 @@
 'use client';
 import { useEffect } from 'react';
 
+const THEME_COOKIE = 'floorux_theme';
+
+function persistThemeCookie(mode: string, palette?: string[]) {
+  if (typeof document === 'undefined') return;
+  const payload = JSON.stringify({ mode, palette: palette && palette.length === 3 ? palette : undefined });
+  document.cookie = `${THEME_COOKIE}=${encodeURIComponent(payload)}; path=/; max-age=31536000; samesite=lax`;
+}
+
 export function applyTheme(mode: string, palette?: string[]) {
   const root = document.documentElement;
   root.setAttribute('data-theme', mode || 'dark');
@@ -9,6 +17,7 @@ export function applyTheme(mode: string, palette?: string[]) {
     root.style.setProperty('--accent2', palette[1]);
     root.style.setProperty('--accent3', palette[2]);
   }
+  persistThemeCookie(mode || 'dark', palette);
 }
 
 export function useTheme(mode: string, palette?: string[]) {
