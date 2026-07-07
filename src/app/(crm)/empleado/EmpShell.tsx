@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MayloDrawer } from '@/components/shell/MayloDrawer';
@@ -7,9 +7,17 @@ import { MayloDock } from '@/components/shell/MayloDock';
 import { applyFullTheme } from '@/hooks/useTheme';
 import { createClient } from '@/lib/supabase/client';
 import { ToastProvider } from '@/components/ui/ToastContext';
+import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile, Comercio } from '@/types/db';
 
 const DEFAULT_PALETTE = { accent: '#7F77DD', accent2: '#27C3D8', accent3: '#B57BE0' };
+const DEFAULT_THEME = { mode: 'dark', palette: [DEFAULT_PALETTE.accent, DEFAULT_PALETTE.accent2, DEFAULT_PALETTE.accent3] };
+
+type ThemeMode = 'dark' | 'light';
+
+function getThemeMode(theme?: Record<string, unknown> | null): ThemeMode {
+  return theme?.mode === 'light' ? 'light' : 'dark';
+}
 
 function createNav(comercioName: string, unreadCount?: number) {
   return [
@@ -54,6 +62,15 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
   const [brandLightbox, setBrandLightbox] = useState(false);
   const [avatarLightbox, setAvatarLightbox] = useState(false);
   const [unreadTickets, setUnreadTickets] = useState(0);
+  const employeeTheme = profile.panel_theme as Record<string, unknown>;
+  const employeeModeRef = useRef<ThemeMode>(getThemeMode(employeeTheme));
+  const adminThemeRef = useRef<Record<string, unknown>>(DEFAULT_THEME);
+
+  function applyEmployeeTheme(adminTheme: Record<string, unknown>, mode = employeeModeRef.current) {
+    adminThemeRef.current = adminTheme;
+    employeeModeRef.current = mode;
+    applyFullTheme({ ...adminTheme, mode }, DEFAULT_PALETTE.accent);
+  }
 
   useEffect(() => {
     const id = profile.comercio_id;
@@ -78,10 +95,9 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         .maybeSingle();
 
       if (adminProfile?.panel_theme) {
-        applyFullTheme(adminProfile.panel_theme as Record<string, unknown>, DEFAULT_PALETTE.accent);
+        applyEmployeeTheme(adminProfile.panel_theme as Record<string, unknown>);
       } else {
-        // Fallback al tema por defecto
-        applyFullTheme({ mode: 'dark', palette: [DEFAULT_PALETTE.accent, DEFAULT_PALETTE.accent2, DEFAULT_PALETTE.accent3] }, DEFAULT_PALETTE.accent);
+        applyEmployeeTheme(DEFAULT_THEME);
       }
     }
     loadAdminTheme();
@@ -107,9 +123,8 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         filter: `comercio_id=eq.${id}`
       }, (payload) => {
         const row = payload.new as { panel_theme?: Record<string, unknown>; role?: string };
-        // Solo aplicar si es el admin del comercio quien cambió su tema
         if (row.role === 'admin' && row.panel_theme) {
-          applyFullTheme(row.panel_theme, DEFAULT_PALETTE.accent);
+          applyEmployeeTheme(row.panel_theme);
         }
       })
       .on('postgres_changes', {
@@ -174,6 +189,13 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={comercio.photo_url ? () => setBrandLightbox(true) : undefined}
         onShopImgClick={profile.avatar_url ? () => setAvatarLightbox(true) : undefined}
+        navFooter={
+          <ThemeModeToggle
+            profileId={profile.id}
+            initialMode={employeeModeRef.current}
+            onModeChange={(mode) => applyEmployeeTheme(adminThemeRef.current, mode)}
+          />
+        }
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
 
