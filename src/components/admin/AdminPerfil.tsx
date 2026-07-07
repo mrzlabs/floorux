@@ -124,23 +124,15 @@ function getInvoice(settings: Record<string, unknown>): ElectronicInvoiceSetting
   return { ...DEFAULT_INVOICE, ...current };
 }
 
-function getPublicCrm(settings: Record<string, unknown>) {
-  const publicCrm = (settings.publicCrm as { customers?: unknown[]; reservations?: unknown[] }) ?? {};
-  return {
-    customers: Array.isArray(publicCrm.customers) ? publicCrm.customers : [],
-    reservations: Array.isArray(publicCrm.reservations) ? publicCrm.reservations : [],
-  };
-}
-
 export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfilProps) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [origin, setOrigin] = useState('');
-  const [settingsState, setSettingsState] = useState<Record<string, unknown>>(comercio.settings ?? {});
   const [form, setForm] = useState({ full_name: profile.full_name, alias: profile.alias ?? '', color: profile.color });
   const [bizForm, setBizForm] = useState({ name: comercio.name, address: comercio.address ?? '', phone: comercio.phone ?? '', nit: comercio.nit ?? '', color: comercio.color });
-  const [commercial, setCommercial] = useState<CommercialSettings>(() => getCommercial(settingsState));
-  const [invoice, setInvoice] = useState<ElectronicInvoiceSettings>(() => getInvoice(settingsState));
+  const [commercial, setCommercial] = useState<CommercialSettings>(() => getCommercial(comercio.commercial_settings));
+  const [invoice, setInvoice] = useState<ElectronicInvoiceSettings>(() => getInvoice(comercio.invoice_settings));
+  const [crmCounts, setCrmCounts] = useState({ customers: 0, reservations: 0 });
   const [savingCommercial, setSavingCommercial] = useState(false);
   const [requestingCampaign, setRequestingCampaign] = useState(false);
   const [savingInvoice, setSavingInvoice] = useState(false);
@@ -155,9 +147,21 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
     setOrigin(window.location.origin);
   }, []);
 
-  const publicCrm = getPublicCrm(settingsState);
   const publicLink = origin ? `${origin}/local/${comercio.id}` : `/local/${comercio.id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicLink)}`;
+
+  useEffect(() => {
+    let alive = true;
+    async function loadCrmCounts() {
+      const [{ count: customers }, { count: reservations }] = await Promise.all([
+        supabase.from('public_customers').select('*', { count: 'exact', head: true }).eq('comercio_id', comercio.id),
+        supabase.from('public_reservations').select('*', { count: 'exact', head: true }).eq('comercio_id', comercio.id),
+      ]);
+      if (alive) setCrmCounts({ customers: customers ?? 0, reservations: reservations ?? 0 });
+    }
+    loadCrmCounts();
+    return () => { alive = false; };
+  }, [comercio.id, supabase]);
 
   function live(patch: Partial<ExtTheme>) {
     const next = { ...theme, ...patch };
@@ -210,26 +214,16 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
   }
 
   async function persistCommercial(nextCommercial: CommercialSettings) {
-    const settings = {
-      ...settingsState,
-      commercial: nextCommercial,
-    };
-    const { error } = await supabase.from('comercios').update({ settings }).eq('id', comercio.id);
+    const { error } = await supabase.from('comercios').update({ commercial_settings: nextCommercial }).eq('id', comercio.id);
     if (error) return error;
-    setSettingsState(settings);
-    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, settings } }));
+    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, commercial_settings: nextCommercial } }));
     return null;
   }
 
   async function persistInvoice(nextInvoice: ElectronicInvoiceSettings) {
-    const settings = {
-      ...settingsState,
-      electronicInvoice: nextInvoice,
-    };
-    const { error } = await supabase.from('comercios').update({ settings }).eq('id', comercio.id);
+    const { error } = await supabase.from('comercios').update({ invoice_settings: nextInvoice }).eq('id', comercio.id);
     if (error) return error;
-    setSettingsState(settings);
-    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, settings } }));
+    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, invoice_settings: nextInvoice } }));
     return null;
   }
 
@@ -505,11 +499,11 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
             <div className="grid g2">
               <div className="stat">
                 <div className="sk"><span className="si" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}><Icon name="users" s={14} /></span>Clientes</div>
-                <div className="sv">{publicCrm.customers.length}</div>
+                <div className="sv">{crmCounts.customers}</div>
               </div>
               <div className="stat">
                 <div className="sk"><span className="si" style={{ background: 'var(--accent2)22', color: 'var(--accent2)' }}><Icon name="calendar" s={14} /></span>Reservas</div>
-                <div className="sv">{publicCrm.reservations.length}</div>
+                <div className="sv">{crmCounts.reservations}</div>
               </div>
             </div>
           </div>
