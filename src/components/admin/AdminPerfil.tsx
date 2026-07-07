@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Icon } from '@/components/ui/Icon';
 import { Field } from '@/components/ui/Field';
@@ -95,19 +95,69 @@ function getCommercial(settings: Record<string, unknown>): CommercialSettings {
   return { ...DEFAULT_COMMERCIAL, ...current };
 }
 
+interface ElectronicInvoiceSettings {
+  enabled: boolean;
+  provider: string;
+  dianMode: 'habilitacion' | 'produccion';
+  autoIssue: boolean;
+  nit: string;
+  taxRegime: string;
+  resolution: string;
+  prefix: string;
+  contactEmail: string;
+}
+
+const DEFAULT_INVOICE: ElectronicInvoiceSettings = {
+  enabled: false,
+  provider: 'manual',
+  dianMode: 'habilitacion',
+  autoIssue: false,
+  nit: '',
+  taxRegime: '',
+  resolution: '',
+  prefix: '',
+  contactEmail: '',
+};
+
+function getInvoice(settings: Record<string, unknown>): ElectronicInvoiceSettings {
+  const current = (settings.electronicInvoice as Partial<ElectronicInvoiceSettings>) ?? {};
+  return { ...DEFAULT_INVOICE, ...current };
+}
+
+function getPublicCrm(settings: Record<string, unknown>) {
+  const publicCrm = (settings.publicCrm as { customers?: unknown[]; reservations?: unknown[] }) ?? {};
+  return {
+    customers: Array.isArray(publicCrm.customers) ? publicCrm.customers : [],
+    reservations: Array.isArray(publicCrm.reservations) ? publicCrm.reservations : [],
+  };
+}
+
 export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfilProps) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
+  const [origin, setOrigin] = useState('');
+  const [settingsState, setSettingsState] = useState<Record<string, unknown>>(comercio.settings ?? {});
   const [form, setForm] = useState({ full_name: profile.full_name, alias: profile.alias ?? '', color: profile.color });
   const [bizForm, setBizForm] = useState({ name: comercio.name, address: comercio.address ?? '', phone: comercio.phone ?? '', nit: comercio.nit ?? '', color: comercio.color });
-  const [commercial, setCommercial] = useState<CommercialSettings>(() => getCommercial(comercio.settings ?? {}));
+  const [commercial, setCommercial] = useState<CommercialSettings>(() => getCommercial(settingsState));
+  const [invoice, setInvoice] = useState<ElectronicInvoiceSettings>(() => getInvoice(settingsState));
   const [savingCommercial, setSavingCommercial] = useState(false);
   const [requestingCampaign, setRequestingCampaign] = useState(false);
+  const [savingInvoice, setSavingInvoice] = useState(false);
+  const [requestingInvoice, setRequestingInvoice] = useState(false);
   const [theme, setTheme] = useState<ExtTheme>(() => getExtTheme(profile.panel_theme as Record<string, unknown>, profile.color));
   const [savingTheme, setSavingTheme] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(comercio.photo_url ?? '');
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const publicCrm = getPublicCrm(settingsState);
+  const publicLink = origin ? `${origin}/local/${comercio.id}` : `/local/${comercio.id}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicLink)}`;
 
   function live(patch: Partial<ExtTheme>) {
     const next = { ...theme, ...patch };
@@ -161,11 +211,24 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
 
   async function persistCommercial(nextCommercial: CommercialSettings) {
     const settings = {
-      ...(comercio.settings ?? {}),
+      ...settingsState,
       commercial: nextCommercial,
     };
     const { error } = await supabase.from('comercios').update({ settings }).eq('id', comercio.id);
     if (error) return error;
+    setSettingsState(settings);
+    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, settings } }));
+    return null;
+  }
+
+  async function persistInvoice(nextInvoice: ElectronicInvoiceSettings) {
+    const settings = {
+      ...settingsState,
+      electronicInvoice: nextInvoice,
+    };
+    const { error } = await supabase.from('comercios').update({ settings }).eq('id', comercio.id);
+    if (error) return error;
+    setSettingsState(settings);
     window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, settings } }));
     return null;
   }
@@ -212,6 +275,50 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
     setRequestingCampaign(false);
     if (!res.ok) { toast('No se pudo enviar la solicitud comercial', 'alert'); return; }
     toast('Solicitud enviada a Super Root', 'check');
+  }
+
+  async function saveInvoice() {
+    setSavingInvoice(true);
+    const error = await persistInvoice(invoice);
+    setSavingInvoice(false);
+    if (error) { toast('No se pudo guardar la facturación', 'alert'); return; }
+    toast('Facturación guardada', 'check');
+  }
+
+  async function requestInvoiceSetup() {
+    setRequestingInvoice(true);
+    const nextInvoice = { ...invoice, enabled: true };
+    const error = await persistInvoice(nextInvoice);
+    if (error) {
+      setRequestingInvoice(false);
+      toast('No se pudo guardar la solicitud de facturación', 'alert');
+      return;
+    }
+    setInvoice(nextInvoice);
+    const body = [
+      `Comercio: ${bizForm.name || comercio.name}`,
+      `Proveedor: ${nextInvoice.provider}`,
+      `Modo DIAN: ${nextInvoice.dianMode}`,
+      `Emisión automática: ${nextInvoice.autoIssue ? 'Sí' : 'No'}`,
+      `NIT: ${nextInvoice.nit || bizForm.nit || 'No configurado'}`,
+      `Régimen: ${nextInvoice.taxRegime || 'No configurado'}`,
+      `Resolución: ${nextInvoice.resolution || 'No configurada'}`,
+      `Prefijo: ${nextInvoice.prefix || 'No configurado'}`,
+      `Correo contacto: ${nextInvoice.contactEmail || 'No configurado'}`,
+    ].join('\n');
+
+    const res = await fetch('/api/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        asunto: `Habilitación facturación electrónica - ${bizForm.name || comercio.name}`,
+        prioridad: 'alta',
+        body,
+      }),
+    });
+    setRequestingInvoice(false);
+    if (!res.ok) { toast('No se pudo enviar la solicitud de facturación', 'alert'); return; }
+    toast('Solicitud de facturación enviada', 'check');
   }
 
   const C   = { fontSize: 13, color: 'var(--muted)' } as const;
@@ -378,6 +485,118 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
           </button>
           <button className="btn ghost" onClick={requestManagedCampaigns} disabled={requestingCampaign}>
             <Icon name="send" s={15} /> {requestingCampaign ? 'Enviando...' : 'Solicitar campañas gestionadas'}
+          </button>
+        </div>
+      </div>
+
+      {/* ─── PANEL PÚBLICO DEL CLIENTE ─────────────────── */}
+      <div className="card" style={{ padding: 20 }}>
+        <h2 style={SEC}>Link y QR del cliente</h2>
+        <p style={{ ...C, marginTop: -6, marginBottom: 16 }}>
+          Comparte este acceso para que el cliente se registre, consulte redes y solicite reservas del local.
+        </p>
+
+        <div className="grid g2" style={{ alignItems: 'stretch' }}>
+          <div className="card" style={{ padding: 16, background: 'var(--surface)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em' }}>URL pública</div>
+              <a href={publicLink} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontSize: 13, wordBreak: 'break-all' }}>{publicLink}</a>
+            </div>
+            <div className="grid g2">
+              <div className="stat">
+                <div className="sk"><span className="si" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}><Icon name="users" s={14} /></span>Clientes</div>
+                <div className="sv">{publicCrm.customers.length}</div>
+              </div>
+              <div className="stat">
+                <div className="sk"><span className="si" style={{ background: 'var(--accent2)22', color: 'var(--accent2)' }}><Icon name="calendar" s={14} /></span>Reservas</div>
+                <div className="sv">{publicCrm.reservations.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: 16, background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <img src={qrUrl} alt="QR del panel cliente" style={{ width: 132, height: 132, borderRadius: 10, background: '#fff', padding: 8 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 6 }}>QR del comercio</div>
+              <div style={C}>Imprime este código o úsalo en mesas, stories y piezas comerciales.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── FACTURACIÓN ELECTRÓNICA ───────────────────── */}
+      <div className="card" style={{ padding: 20 }}>
+        <h2 style={SEC}>Facturación electrónica</h2>
+        <p style={{ ...C, marginTop: -6, marginBottom: 16 }}>
+          Configura el proveedor y los datos DIAN para emitir facturas desde las ventas del bar.
+        </p>
+
+        <div className="card" style={{ padding: 14, marginBottom: 14, background: 'var(--surface)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>Estado de facturación</div>
+              <div style={C}>La emisión requiere proveedor autorizado y resolución activa.</div>
+            </div>
+            <button
+              type="button"
+              className={'btn sm' + (invoice.enabled ? ' pri' : '')}
+              onClick={() => setInvoice(i => ({ ...i, enabled: !i.enabled }))}
+            >
+              <Icon name={invoice.enabled ? 'check' : 'receipt'} s={14} />
+              {invoice.enabled ? 'Habilitada' : 'Habilitar'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid g2">
+          <Field label="Proveedor">
+            <select className="inp" value={invoice.provider} onChange={e => setInvoice(i => ({ ...i, provider: e.target.value }))}>
+              <option value="manual">Manual</option>
+              <option value="factus">Factus</option>
+              <option value="siigo">Siigo</option>
+              <option value="alegra">Alegra</option>
+            </select>
+          </Field>
+          <Field label="Modo DIAN">
+            <select className="inp" value={invoice.dianMode} onChange={e => setInvoice(i => ({ ...i, dianMode: e.target.value as ElectronicInvoiceSettings['dianMode'] }))}>
+              <option value="habilitacion">Habilitación</option>
+              <option value="produccion">Producción</option>
+            </select>
+          </Field>
+          <Field label="NIT facturador">
+            <input className="inp" value={invoice.nit} placeholder={bizForm.nit || '900000000-0'} onChange={e => setInvoice(i => ({ ...i, nit: e.target.value }))} />
+          </Field>
+          <Field label="Régimen tributario">
+            <input className="inp" value={invoice.taxRegime} placeholder="Responsable de IVA" onChange={e => setInvoice(i => ({ ...i, taxRegime: e.target.value }))} />
+          </Field>
+          <Field label="Resolución DIAN">
+            <input className="inp" value={invoice.resolution} placeholder="Número de resolución" onChange={e => setInvoice(i => ({ ...i, resolution: e.target.value }))} />
+          </Field>
+          <Field label="Prefijo">
+            <input className="inp" value={invoice.prefix} placeholder="FE" onChange={e => setInvoice(i => ({ ...i, prefix: e.target.value.toUpperCase() }))} />
+          </Field>
+          <Field label="Correo de facturación">
+            <input className="inp" type="email" value={invoice.contactEmail} placeholder="facturacion@bar.com" onChange={e => setInvoice(i => ({ ...i, contactEmail: e.target.value }))} />
+          </Field>
+          <Field label="Emisión automática">
+            <button
+              type="button"
+              className={'btn sm' + (invoice.autoIssue ? ' pri' : '')}
+              onClick={() => setInvoice(i => ({ ...i, autoIssue: !i.autoIssue }))}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              <Icon name={invoice.autoIssue ? 'check' : 'spark'} s={14} />
+              {invoice.autoIssue ? 'Activa al cerrar venta' : 'Manual por venta'}
+            </button>
+          </Field>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <button className="btn pri" onClick={saveInvoice} disabled={savingInvoice}>
+            <Icon name="check" /> {savingInvoice ? 'Guardando...' : 'Guardar facturación'}
+          </button>
+          <button className="btn ghost" onClick={requestInvoiceSetup} disabled={requestingInvoice}>
+            <Icon name="send" s={15} /> {requestingInvoice ? 'Enviando...' : 'Solicitar habilitación'}
           </button>
         </div>
       </div>
