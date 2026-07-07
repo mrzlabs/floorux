@@ -78,7 +78,7 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
     const supabase = createClient();
 
     // Cargar datos del comercio
-    supabase.from('comercios').select('name, photo_url, color').eq('id', id).maybeSingle()
+    supabase.from('comercios').select('name, photo_url, color, updated_at').eq('id', id).maybeSingle()
       .then(({ data }) => {
         if (data) {
           setComercio(data as Comercio);
@@ -133,8 +133,8 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         table: 'comercios',
         filter: `id=eq.${id}`
       }, (payload) => {
-        const row = payload.new as { name?: string; photo_url?: string; color?: string };
-        setComercio(prev => ({ ...prev, ...row }));
+        const row = payload.new as { name?: string; photo_url?: string; color?: string; updated_at?: string };
+        setComercio(prev => ({ ...prev, ...row, photo_url: row.photo_url || prev.photo_url }));
       })
       .on('postgres_changes', {
         event: '*',
@@ -180,11 +180,16 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         }
         shopColor={profile.color}
         shopImg={profile.avatar_url ?? null}
-        brandSub={comercio.name || 'Comercio'}
+        brandName={comercio.name || 'Local'}
+        brandSub="FloorUX CRM"
         open={sideOpen}
         onClose={() => setSideOpen(false)}
         // brand-mark: foto del comercio
-        brandLogo={comercio.photo_url ?? null}
+        brandLogo={
+          comercio.photo_url
+            ? `${comercio.photo_url}${comercio.photo_url.includes('?') ? '&' : '?'}v=${encodeURIComponent(String(comercio.updated_at ?? ''))}`
+            : null
+        }
         brandFallbackColor={comercio.color}
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={comercio.photo_url ? () => setBrandLightbox(true) : undefined}

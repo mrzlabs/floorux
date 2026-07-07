@@ -23,6 +23,7 @@ interface SidebarProps {
   shopSub: string | React.ReactNode;
   shopColor: string;
   shopImg?: string | null;
+  brandName?: string | null;
   brandSub?: string | null;
   onClose?: () => void;
   open?: boolean;
@@ -36,7 +37,7 @@ interface SidebarProps {
   onShopImgClick?: () => void;
 }
 
-export function Sidebar({ navItems, shopName, shopSub, shopColor, shopImg, brandSub, onClose, open, returnPath, brandLogo, onBrandLogoUpload, onBrandLogoClick, brandFallbackColor, brandFallbackInitials, navFooter, onShopImgClick }: SidebarProps) {
+export function Sidebar({ navItems, shopName, shopSub, shopColor, shopImg, brandName, brandSub, onClose, open, returnPath, brandLogo, onBrandLogoUpload, onBrandLogoClick, brandFallbackColor, brandFallbackInitials, navFooter, onShopImgClick }: SidebarProps) {
   const pathname = usePathname();
   const [logoHover, setLogoHover] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -97,7 +98,7 @@ export function Sidebar({ navItems, shopName, shopSub, shopColor, shopImg, brand
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
 
         <div>
-          <div className="brand-tx">FloorUX<span>.</span></div>
+          <div className="brand-tx">{brandName || 'FloorUX'}<span>.</span></div>
           <div className="brand-sub">{brandSub || shopName}</div>
         </div>
       </div>

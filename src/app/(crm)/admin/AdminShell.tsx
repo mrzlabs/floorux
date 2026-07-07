@@ -22,6 +22,13 @@ const TIPS: Record<string, string[]> = {
   perfil:     ['Sube la foto de tu local.'],
 };
 
+function withFreshLogo(url?: string | null, version?: string | null) {
+  if (!url) return null;
+  if (url.includes('?v=') || url.includes('&v=')) return url;
+  if (!version) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(version)}`;
+}
+
 const GUIDES: Record<string, string[]> = {
   resumen: ['Revisa ventas, mesas activas y alertas de inventario.', 'Prioriza las tarjetas con valores fuera de rango.', 'Abre la vista específica cuando necesites corregir operación.'],
   mesas: ['Selecciona una mesa libre u ocupada.', 'Agrega productos, registra pagos o cierra la mesa según corresponda.', 'Verifica que la auditoría refleje la acción realizada.'],
@@ -64,7 +71,14 @@ export function AdminShell({
   }, []);
 
   useEffect(() => {
-    setCurrentComercio(comercio);
+    setCurrentComercio(prev => ({
+      ...comercio,
+      photo_url: comercio.photo_url || prev.photo_url,
+      settings: {
+        ...(prev.settings ?? {}),
+        ...(comercio.settings ?? {}),
+      },
+    }));
   }, [comercio]);
 
   useEffect(() => {
@@ -75,15 +89,37 @@ export function AdminShell({
       .eq('id', comercio.id)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setCurrentComercio(data as Comercio);
+        if (data) setCurrentComercio(prev => ({
+          ...(data as Comercio),
+          photo_url: (data as Comercio).photo_url || prev.photo_url,
+        }));
       });
+
+    const channel = supabase
+      .channel(`admin-commerce-brand:${comercio.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'comercios',
+        filter: `id=eq.${comercio.id}`,
+      }, (payload) => {
+        const row = payload.new as Comercio;
+        setCurrentComercio(prev => ({
+          ...prev,
+          ...row,
+          photo_url: row.photo_url || prev.photo_url,
+        }));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [comercio.id]);
 
   useEffect(() => {
     function syncCommerce(event: Event) {
       const detail = (event as CustomEvent<Partial<Comercio> & { id?: string }>).detail;
       if (!detail?.id || detail.id !== comercio.id) return;
-      setCurrentComercio(prev => ({ ...prev, ...detail }));
+      setCurrentComercio(prev => ({ ...prev, ...detail, photo_url: detail.photo_url || prev.photo_url }));
     }
     window.addEventListener('floorux:commerce-updated', syncCommerce);
     return () => window.removeEventListener('floorux:commerce-updated', syncCommerce);
@@ -115,12 +151,13 @@ export function AdminShell({
         shopSub={`Admin · ${currentComercio.name}`}
         shopColor={profile.color}
         shopImg={profile.avatar_url ?? null}
-        brandSub={currentComercio.name}
+        brandName={currentComercio.name || 'Local'}
+        brandSub="FloorUX CRM"
         open={sideOpen}
         onClose={() => setSideOpen(false)}
         returnPath={returnPath}
         // brand-mark: foto del comercio activo
-        brandLogo={currentComercio.photo_url ?? null}
+        brandLogo={withFreshLogo(currentComercio.photo_url, currentComercio.updated_at)}
         brandFallbackColor={currentComercio.color}
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={currentComercio.photo_url ? () => setBrandLightbox(true) : undefined}

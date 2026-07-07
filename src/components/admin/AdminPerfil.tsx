@@ -62,11 +62,47 @@ interface AdminPerfilProps {
   operating?: boolean;
 }
 
+interface CommercialSettings {
+  instagram: string;
+  facebook: string;
+  tiktok: string;
+  website: string;
+  whatsapp: string;
+  whatsappReservations: boolean;
+  metaBusinessId: string;
+  metaPixelId: string;
+  metaAdsConnected: boolean;
+  managedCampaigns: boolean;
+  campaignGoal: string;
+}
+
+const DEFAULT_COMMERCIAL: CommercialSettings = {
+  instagram: '',
+  facebook: '',
+  tiktok: '',
+  website: '',
+  whatsapp: '',
+  whatsappReservations: false,
+  metaBusinessId: '',
+  metaPixelId: '',
+  metaAdsConnected: false,
+  managedCampaigns: false,
+  campaignGoal: '',
+};
+
+function getCommercial(settings: Record<string, unknown>): CommercialSettings {
+  const current = (settings.commercial as Partial<CommercialSettings>) ?? {};
+  return { ...DEFAULT_COMMERCIAL, ...current };
+}
+
 export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfilProps) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ full_name: profile.full_name, alias: profile.alias ?? '', color: profile.color });
   const [bizForm, setBizForm] = useState({ name: comercio.name, address: comercio.address ?? '', phone: comercio.phone ?? '', nit: comercio.nit ?? '', color: comercio.color });
+  const [commercial, setCommercial] = useState<CommercialSettings>(() => getCommercial(comercio.settings ?? {}));
+  const [savingCommercial, setSavingCommercial] = useState(false);
+  const [requestingCampaign, setRequestingCampaign] = useState(false);
   const [theme, setTheme] = useState<ExtTheme>(() => getExtTheme(profile.panel_theme as Record<string, unknown>, profile.color));
   const [savingTheme, setSavingTheme] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(comercio.photo_url ?? '');
@@ -121,6 +157,61 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
     setPhotoUrl(data.publicUrl);
     window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, photo_url: data.publicUrl } }));
     toast('Foto del comercio actualizada', 'check');
+  }
+
+  async function persistCommercial(nextCommercial: CommercialSettings) {
+    const settings = {
+      ...(comercio.settings ?? {}),
+      commercial: nextCommercial,
+    };
+    const { error } = await supabase.from('comercios').update({ settings }).eq('id', comercio.id);
+    if (error) return error;
+    window.dispatchEvent(new CustomEvent('floorux:commerce-updated', { detail: { id: comercio.id, settings } }));
+    return null;
+  }
+
+  async function saveCommercial() {
+    setSavingCommercial(true);
+    const error = await persistCommercial(commercial);
+    setSavingCommercial(false);
+    if (error) { toast('No se pudo guardar la configuración comercial', 'alert'); return; }
+    toast('Configuración comercial guardada', 'check');
+  }
+
+  async function requestManagedCampaigns() {
+    setRequestingCampaign(true);
+    const nextCommercial = { ...commercial, managedCampaigns: true };
+    const error = await persistCommercial(nextCommercial);
+    if (error) {
+      setRequestingCampaign(false);
+      toast('No se pudo guardar la solicitud comercial', 'alert');
+      return;
+    }
+    setCommercial(nextCommercial);
+    const body = [
+      `Comercio: ${bizForm.name || comercio.name}`,
+      `WhatsApp reservas: ${nextCommercial.whatsappReservations ? 'Activo' : 'No activo'}`,
+      `WhatsApp: ${nextCommercial.whatsapp || 'No configurado'}`,
+      `Instagram: ${nextCommercial.instagram || 'No configurado'}`,
+      `Facebook: ${nextCommercial.facebook || 'No configurado'}`,
+      `TikTok: ${nextCommercial.tiktok || 'No configurado'}`,
+      `Meta Business ID: ${nextCommercial.metaBusinessId || 'No configurado'}`,
+      `Pixel Meta: ${nextCommercial.metaPixelId || 'No configurado'}`,
+      `Objetivo: ${nextCommercial.campaignGoal || 'Pendiente por definir'}`,
+    ].join('\n');
+
+    const res = await fetch('/api/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        asunto: `Campañas gestionadas - ${bizForm.name || comercio.name}`,
+        prioridad: 'alta',
+        body,
+      }),
+    });
+    setRequestingCampaign(false);
+    if (!res.ok) { toast('No se pudo enviar la solicitud comercial', 'alert'); return; }
+    toast('Solicitud enviada a Super Root', 'check');
   }
 
   const C   = { fontSize: 13, color: 'var(--muted)' } as const;
@@ -203,6 +294,92 @@ export function AdminPerfil({ profile, comercio, operating = false }: AdminPerfi
         <button className="btn pri" style={{ marginTop: 16, width: '100%' }} onClick={saveBiz}>
           <Icon name="check" /> Guardar cambios del local
         </button>
+      </div>
+
+      {/* ─── IMPULSO COMERCIAL ──────────────────────────── */}
+      <div className="card" style={{ padding: 20 }}>
+        <h2 style={SEC}>Canales e impulso comercial</h2>
+        <p style={{ ...C, marginTop: -6, marginBottom: 16 }}>
+          Configura redes, WhatsApp de reservas y opciones de pauta para activar el panel comercial del local.
+        </p>
+
+        <div className="grid g2">
+          <Field label="Instagram">
+            <input className="inp" value={commercial.instagram} placeholder="@urgenciasbar" onChange={e => setCommercial(c => ({ ...c, instagram: e.target.value }))} />
+          </Field>
+          <Field label="Facebook">
+            <input className="inp" value={commercial.facebook} placeholder="facebook.com/urgenciasbar" onChange={e => setCommercial(c => ({ ...c, facebook: e.target.value }))} />
+          </Field>
+          <Field label="TikTok">
+            <input className="inp" value={commercial.tiktok} placeholder="@urgenciasbar" onChange={e => setCommercial(c => ({ ...c, tiktok: e.target.value }))} />
+          </Field>
+          <Field label="Sitio web o Linktree">
+            <input className="inp" value={commercial.website} placeholder="https://..." onChange={e => setCommercial(c => ({ ...c, website: e.target.value }))} />
+          </Field>
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 14, background: 'var(--surface)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>WhatsApp para reservas</div>
+              <div style={C}>Habilita el número que recibirá reservas y consultas comerciales.</div>
+            </div>
+            <button
+              type="button"
+              className={'btn sm' + (commercial.whatsappReservations ? ' pri' : '')}
+              onClick={() => setCommercial(c => ({ ...c, whatsappReservations: !c.whatsappReservations }))}
+            >
+              <Icon name={commercial.whatsappReservations ? 'check' : 'chat'} s={14} />
+              {commercial.whatsappReservations ? 'Activo' : 'Activar'}
+            </button>
+          </div>
+          <Field label="Número WhatsApp">
+            <input className="inp" value={commercial.whatsapp} placeholder="+57 300 000 0000" onChange={e => setCommercial(c => ({ ...c, whatsapp: e.target.value }))} />
+          </Field>
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 14, background: 'var(--surface)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>Meta y campañas</div>
+              <div style={C}>Deja listo el comercio para campañas propias o administradas por MRZLabs.</div>
+            </div>
+            <button
+              type="button"
+              className={'btn sm' + (commercial.metaAdsConnected ? ' pri' : '')}
+              onClick={() => setCommercial(c => ({ ...c, metaAdsConnected: !c.metaAdsConnected }))}
+            >
+              <Icon name={commercial.metaAdsConnected ? 'check' : 'spark'} s={14} />
+              {commercial.metaAdsConnected ? 'Conectado' : 'Marcar conexión'}
+            </button>
+          </div>
+          <div className="grid g2">
+            <Field label="Meta Business ID">
+              <input className="inp" value={commercial.metaBusinessId} placeholder="ID de Business Manager" onChange={e => setCommercial(c => ({ ...c, metaBusinessId: e.target.value }))} />
+            </Field>
+            <Field label="Meta Pixel ID">
+              <input className="inp" value={commercial.metaPixelId} placeholder="ID del pixel" onChange={e => setCommercial(c => ({ ...c, metaPixelId: e.target.value }))} />
+            </Field>
+          </div>
+          <Field label="Objetivo comercial">
+            <textarea
+              className="inp"
+              rows={3}
+              value={commercial.campaignGoal}
+              placeholder="Ej. llenar reservas de viernes, atraer cumpleaños, impulsar eventos o aumentar ticket promedio."
+              onChange={e => setCommercial(c => ({ ...c, campaignGoal: e.target.value }))}
+            />
+          </Field>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <button className="btn pri" onClick={saveCommercial} disabled={savingCommercial}>
+            <Icon name="check" /> {savingCommercial ? 'Guardando...' : 'Guardar conexiones'}
+          </button>
+          <button className="btn ghost" onClick={requestManagedCampaigns} disabled={requestingCampaign}>
+            <Icon name="send" s={15} /> {requestingCampaign ? 'Enviando...' : 'Solicitar campañas gestionadas'}
+          </button>
+        </div>
       </div>
 
       {/* ─── APARIENCIA PERSONAL ────────────────────────── */}
