@@ -20,6 +20,7 @@ const TIPS: Record<string, string[]> = {
   empleados:  ['Activa o desactiva un empleado al instante.'],
   chat:       ['Comunícate con tu equipo en tiempo real.'],
   soporte:    ['Tu Super Admin recibe tus tickets de soporte al instante.'],
+  apariencia: ['El modo claro/oscuro también se cambia rápido desde el pie del menú.'],
   perfil:     ['Sube la foto de tu local.'],
 };
 
@@ -39,6 +40,7 @@ const GUIDES: Record<string, string[]> = {
   empleados: ['Ubica el empleado.', 'Valida rol, comercio y estado activo.', 'Aplica cambios de acceso solo si corresponden a la operación actual.'],
   chat: ['Selecciona la conversación.', 'Responde con contexto operativo.', 'Confirma que el mensaje quede enviado al equipo correcto.'],
   soporte: ['Revisa tickets abiertos.', 'Prioriza bloqueos operativos.', 'Responde y actualiza estado cuando la gestión quede resuelta.'],
+  apariencia: ['Elige modo claro u oscuro.', 'Selecciona una paleta o define tus propios colores.', 'Ajusta tipografía, densidad y bordes a tu gusto.', 'Guarda para que el cambio persista entre sesiones.'],
   perfil: ['Actualiza datos del comercio.', 'Carga foto o identidad visual del local.', 'Verifica que el sidebar refleje el comercio actualizado.'],
 };
 
@@ -135,7 +137,8 @@ export function AdminShell({
     { href: '/admin/empleados',  label: 'Empleados',  icon: 'users',  title: 'Empleados',              sub: 'Equipo del local' },
     { href: '/admin/chat',       label: 'Chat',       icon: 'chat',   title: 'Chat interno',           sub: 'Mensajes del equipo' },
     { href: '/admin/soporte',    label: 'Soporte',    icon: 'alert',  title: 'Soporte',                sub: 'Canal con el Super Admin', badge: supportBadge },
-    { href: '/admin/perfil',     label: 'Mi local',   icon: 'user',   title: 'Mi local',               sub: 'Datos y personalización' },
+    { href: '/admin/apariencia', label: 'Apariencia', icon: 'spark',  title: 'Apariencia',             sub: 'Tema y colores de tu panel' },
+    { href: '/admin/perfil',     label: 'Mi local',   icon: 'user',   title: 'Mi local',               sub: 'Datos, redes y facturación' },
   ];
 
   const item = nav.find(n => n.href.endsWith(view)) ?? nav[0];
