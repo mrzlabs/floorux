@@ -189,6 +189,9 @@ export interface IntegrationState {
   managed: boolean;
   handle?: string;
   requestedAt: string;
+  activatedAt?: string;
+  /** Solo WhatsApp: phone_number_id de Meta Cloud API, lo registra OperUX al activar. */
+  phoneNumberId?: string;
   /** Métricas sincronizadas por OperUX una vez activa la conexión. */
   metrics?: {
     followers?: number;

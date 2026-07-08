@@ -19,6 +19,7 @@ const NAV = [
   { href: '/super-root/logs', label: 'Logs', icon: 'history', title: 'Logs de auditoría', sub: 'Registro de actividad' },
   { href: '/super-root/auditoria', label: 'Auditoría', icon: 'check', title: 'Auditoría de inventario', sub: 'Cuadre global inventario vs ventas' },
   { href: '/super-root/soporte', label: 'Soporte', icon: 'chat', title: 'Soporte de la red', sub: 'Solicitudes directas de Super Admins' },
+  { href: '/super-root/integraciones', label: 'Integraciones', icon: 'plug', title: 'Integraciones de la red', sub: 'Solicitudes, activaciones e ingresos' },
   { href: '/super-root/apariencia', label: 'Apariencia', icon: 'spark', title: 'Apariencia', sub: 'Tema y colores de tu panel' },
   { href: '/super-root/cuenta', label: 'Mi cuenta', icon: 'user', title: 'Mi cuenta', sub: 'Perfil y logo de marca' },
 ];
@@ -63,6 +64,10 @@ const HELP: Record<string, { guide: string[]; tips: string[] }> = {
   apariencia: {
     guide: ['Elige modo claro u oscuro.', 'Selecciona una paleta o define tus propios colores.', 'Ajusta tipografía, densidad y bordes a tu gusto.', 'Guarda para que el cambio persista entre sesiones.'],
     tips: ['Elige el modo claro u oscuro y la paleta de tu panel desde esta pantalla.'],
+  },
+  integraciones: {
+    guide: ['Revisa las solicitudes pendientes de la red.', 'Para WhatsApp, registra el número en la WABA y pega el phone_number_id al activar.', 'Activa la integración: el incremento aplica desde ese momento.', 'Pausa o desvincula cuando el comercio lo solicite.'],
+    tips: ['Las solicitudes pendientes aparecen primero.', 'El ingreso mensual activo suma solo integraciones ya activadas.', 'Vincular redes es gratis para el comercio; cobra campañas y gestión.'],
   },
 };
 
