@@ -5,10 +5,14 @@
    si OperUX administra la integración por el cliente.
 
    Referencias de mercado (Colombia, 2026) usadas para fijar precios:
-   - WhatsApp API gestionado (Wasapi, Treble):     ~USD 49–99/mes  (~COP 200–400k)
-   - Facturación electrónica DIAN (Aliaddo/Siigo): ~COP 40–120k/mes
-   - Herramientas de redes (Metricool/Hootsuite):  ~USD 10–50/mes
-   - Community management local:                   ~COP 400k–1.5M/mes
+   - Intermediarios de WhatsApp API (Wasapi, Treble): ~USD 49–99/mes (~COP 200–400k)
+     → FloorUX NO usa intermediarios: conecta directo con la
+       WhatsApp Cloud API de Meta. Responder a clientes dentro de
+       la ventana de 24 h no tiene costo; solo las plantillas
+       salientes (campañas) tienen tarifa por conversación de Meta.
+   - Facturación electrónica DIAN (Aliaddo/Siigo):    ~COP 40–120k/mes
+   - Herramientas de redes (Metricool/Hootsuite):     ~USD 10–50/mes
+   - Community management local:                      ~COP 400k–1.5M/mes
    FloorUX cobra por debajo del proveedor directo porque agrega
    el volumen de toda la red de comercios.
    ============================================================ */
@@ -103,7 +107,7 @@ export const INTEGRATIONS_CATALOG: IntegrationDef[] = [
     features: [
       'Confirmaciones de reserva y avisos de eventos automáticos',
       'Promociones masivas a tu base de clientes',
-      'Plantillas aprobadas por Meta (API oficial vía Wasapi)',
+      'Plantillas aprobadas por Meta (WhatsApp Cloud API oficial)',
       'Requiere WhatsApp Business vinculado (gratis)',
     ],
     monthly: 79000,

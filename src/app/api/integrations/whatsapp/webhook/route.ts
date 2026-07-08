@@ -3,14 +3,21 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 /* ============================================================
-   Webhook de mensajes entrantes de WhatsApp.
-   URL a registrar en Meta/Wasapi:
-     https://<app>/api/integrations/whatsapp/webhook?comercio=<uuid>&token=<WA_WEBHOOK_TOKEN>
+   Webhook de mensajes entrantes — API oficial de Meta
+   (WhatsApp Cloud API, sin intermediarios).
 
-   GET  → verificación de webhook estilo Meta (hub.challenge).
-   POST → mensaje entrante. Acepta dos formatos:
-     1. Meta Cloud API (entry[].changes[].value.messages[])
-     2. Simple (Wasapi / integraciones propias): { phone, name?, body, source? }
+   Configurar en Meta App Dashboard → WhatsApp → Configuration:
+     Callback URL:  https://<app>/api/integrations/whatsapp/webhook?token=<WA_WEBHOOK_TOKEN>
+     Verify token:  <WA_WEBHOOK_TOKEN>
+     Campo suscrito: messages
+
+   Una sola URL sirve a todos los comercios: el payload de Meta
+   trae metadata.phone_number_id y con él se resuelve el comercio
+   (settings.integrations.whatsapp.phoneNumberId).
+
+   También acepta un formato simple (registros desde la propia app
+   u otras fuentes) con ?comercio=<uuid>:
+     { phone, name?, body, source? }
    ============================================================ */
 
 const simpleSchema = z.object({
@@ -28,7 +35,7 @@ function authorized(req: NextRequest): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  // Verificación de webhook (Meta): responde hub.challenge si el verify_token coincide
+  // Verificación de webhook de Meta: responde hub.challenge si el verify_token coincide
   const params = req.nextUrl.searchParams;
   const mode = params.get('hub.mode');
   const verifyToken = params.get('hub.verify_token');
@@ -42,39 +49,47 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const comercioId = req.nextUrl.searchParams.get('comercio');
-  if (!comercioId) return NextResponse.json({ error: 'missing comercio' }, { status: 400 });
-
   const admin = createAdminClient();
-  const { data: comercio } = await admin.from('comercios').select('id,status').eq('id', comercioId).maybeSingle();
-  if (!comercio) return NextResponse.json({ error: 'comercio not found' }, { status: 404 });
-
   const payload = await req.json().catch(() => null);
   if (!payload) return NextResponse.json({ error: 'invalid json' }, { status: 400 });
 
-  // Normalizar: formato Meta Cloud API o formato simple
   const inbound: { phone: string; name?: string; body: string; source: 'whatsapp' | 'app'; wa_message_id?: string }[] = [];
+  let comercioId = req.nextUrl.searchParams.get('comercio');
 
-  const metaMessages = payload?.entry?.[0]?.changes?.[0]?.value;
-  if (metaMessages?.messages?.length) {
-    const contactName: string | undefined = metaMessages.contacts?.[0]?.profile?.name;
-    for (const m of metaMessages.messages) {
+  const value = payload?.entry?.[0]?.changes?.[0]?.value;
+  if (value?.messaging_product === 'whatsapp') {
+    // Formato Meta Cloud API: resolver comercio por phone_number_id
+    const phoneNumberId: string | undefined = value?.metadata?.phone_number_id;
+    if (!comercioId && phoneNumberId) {
+      const { data: match } = await admin
+        .from('comercios')
+        .select('id')
+        .filter('settings->integrations->whatsapp->>phoneNumberId', 'eq', phoneNumberId)
+        .maybeSingle();
+      comercioId = match?.id ?? null;
+    }
+    const contactName: string | undefined = value.contacts?.[0]?.profile?.name;
+    for (const m of value.messages ?? []) {
       if (m.type === 'text' && m.text?.body) {
         inbound.push({ phone: String(m.from), name: contactName, body: String(m.text.body).slice(0, 4000), source: 'whatsapp', wa_message_id: m.id });
       }
     }
+    // Meta reenvía si no respondemos 200: estados (delivered/read) u otros tipos se aceptan sin guardar
+    if (inbound.length === 0) return NextResponse.json({ ok: true, stored: 0 });
   } else {
     const parsed = simpleSchema.safeParse(payload);
     if (!parsed.success) return NextResponse.json({ error: 'validation' }, { status: 400 });
     inbound.push(parsed.data);
   }
 
-  if (inbound.length === 0) return NextResponse.json({ ok: true, stored: 0 });
+  if (!comercioId) return NextResponse.json({ ok: true, stored: 0, note: 'comercio no resuelto' });
+
+  const { data: comercio } = await admin.from('comercios').select('id').eq('id', comercioId).maybeSingle();
+  if (!comercio) return NextResponse.json({ ok: true, stored: 0, note: 'comercio no existe' });
 
   let stored = 0;
   for (const msg of inbound) {
     const phone = msg.phone.replace(/[^\d+]/g, '');
-    // upsert de contacto por (comercio, teléfono)
     const { data: contact, error: cErr } = await admin
       .from('wa_contacts')
       .upsert(
