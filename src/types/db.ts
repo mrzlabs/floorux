@@ -47,6 +47,58 @@ export interface Comercio {
   updated_at: string;
 }
 
+/* Clientes registrados desde la página pública del local */
+export interface PublicCustomer {
+  id: string;
+  comercio_id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  birthday: string | null;
+  visits: number;
+  total_spent: number;
+  last_login: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicReservation {
+  id: string;
+  comercio_id: string;
+  customer_id: string | null;
+  name: string;
+  email: string;
+  phone: string | null;
+  date: string;
+  time: string;
+  party_size: number;
+  notes: string | null;
+  status: 'solicitada' | 'confirmada' | 'cancelada';
+  created_at: string;
+}
+
+/* Chat WhatsApp con clientes (migración 20260708000001_whatsapp_chat.sql) */
+export interface WaContact {
+  id: string;
+  comercio_id: string;
+  phone: string;
+  name: string | null;
+  source: 'whatsapp' | 'app';
+  created_at: string;
+}
+
+export interface WaMessage {
+  id: string;
+  comercio_id: string;
+  contact_id: string;
+  direction: 'in' | 'out';
+  body: string;
+  status: 'received' | 'queued' | 'sent' | 'delivered' | 'read' | 'failed';
+  wa_message_id: string | null;
+  sender_profile_id: string | null;
+  created_at: string;
+}
+
 export interface Product {
   id: string;
   comercio_id: string;
