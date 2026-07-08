@@ -9,7 +9,7 @@ export default function PrivacidadLayout({ children }: { children: ReactNode }) 
       WebkitOverflowScrolling: 'touch' as any,
       background: '#f5f6fb',
       color: '#191b27',
-      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+      fontFamily: 'var(--font-jakarta), system-ui, sans-serif',
     }}>
       {children}
     </div>

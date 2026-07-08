@@ -42,7 +42,7 @@ super_super_admin  (1 instancia global — OperUX)
 | Zustand | Store cliente optimista (mesas, inventario) |
 | Zod | Validación en server actions y API routes |
 | Tailwind CSS | Utilidades base |
-| `floorux.css` | Sistema de diseño completo (dark/light, neón) |
+| `globals.css` | Sistema de diseño completo (dark/light, glass, tokens por tenant) |
 
 ---
 
@@ -179,7 +179,7 @@ floorux/
 │   │   ├── audit.ts            # Server action de audit log
 │   │   └── utils.ts            # COP, COPk, exportCSV, rangos de fecha
 │   ├── styles/
-│   │   └── floorux.css         # Sistema de diseño completo (no modificar)
+│   │   └── globals.css         # Sistema de diseño completo (tokens, glass, responsive)
 │   └── types/
 │       ├── db.ts               # Tipos de todas las tablas
 │       └── roles.ts            # Roles y rutas por rol

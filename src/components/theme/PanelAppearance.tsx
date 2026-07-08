@@ -10,6 +10,7 @@ export interface ExtTheme {
   density: 'comfortable' | 'compact';
   radius: number;
   neuralOpacity: number;
+  glass: number;
 }
 
 export const APPEARANCE_PALETTES = [
@@ -23,7 +24,13 @@ export const APPEARANCE_PALETTES = [
   { name: 'Bosque',    c: ['#34d399', '#3b82f6', '#a78bfa'] },
 ];
 
-export const APPEARANCE_FONTS = ['Plus Jakarta Sans', 'DM Sans', 'Syne', 'Outfit', 'Space Grotesk'];
+// Solo familias auto-hospedadas vía next/font (ver app/layout.tsx y useTheme.ts).
+export const APPEARANCE_FONTS = ['Plus Jakarta Sans', 'Space Grotesk'];
+
+const FONT_PREVIEW: Record<string, string> = {
+  'Plus Jakarta Sans': 'var(--font-jakarta)',
+  'Space Grotesk': 'var(--font-grotesk)',
+};
 
 export function getExtTheme(pt: Record<string, unknown>, fallback: string): ExtTheme {
   return {
@@ -35,6 +42,7 @@ export function getExtTheme(pt: Record<string, unknown>, fallback: string): ExtT
     density: pt.density === 'compact' ? 'compact' : 'comfortable',
     radius: typeof pt.radius === 'number' ? pt.radius : 14,
     neuralOpacity: typeof pt.neuralOpacity === 'number' ? pt.neuralOpacity : 60,
+    glass: typeof pt.glass === 'number' ? pt.glass : 55,
   };
 }
 
@@ -59,36 +67,10 @@ export function PanelAppearance({ theme, onChange }: PanelAppearanceProps) {
         </div>
       </Field>
 
-      <Field label="Paleta de colores">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px 10px' }}>
-          {APPEARANCE_PALETTES.map(p => {
-            const active = p.c.every((col, i) => col === theme.palette[i]);
-            return (
-              <div key={p.name} style={{ textAlign: 'center' }}>
-                <button
-                  type="button"
-                  className={'swatch' + (active ? ' on' : '')}
-                  style={{
-                    width: 52, height: 52,
-                    background: `linear-gradient(to right, ${p.c[0]} 0% 33%, ${p.c[1]} 33% 66%, ${p.c[2]} 66% 100%)`,
-                    borderRadius: 12,
-                  }}
-                  title={p.name}
-                  aria-label={p.name}
-                  onClick={() => onChange({ palette: p.c })}
-                />
-                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 5, lineHeight: 1.2 }}>{p.name}</div>
-              </div>
-            );
-          })}
-        </div>
-      </Field>
-
-      <Field label="Colores personalizados">
-        <div style={{ display: 'flex', gap: 16 }}>
-          {(['Acento 1', 'Acento 2', 'Acento 3'] as const).map((label, i) => (
+      <Field label="Colores de tu marca">
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          {(['Principal', 'Secundario', 'Detalle'] as const).map((label, i) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label className="crm-label" style={{ fontSize: 11 }}>{label}</label>
               <input
                 type="color"
                 value={theme.palette[i] ?? '#7F77DD'}
@@ -97,10 +79,41 @@ export function PanelAppearance({ theme, onChange }: PanelAppearanceProps) {
                   nextPalette[i] = e.target.value;
                   onChange({ palette: nextPalette });
                 }}
-                style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid var(--line)', cursor: 'pointer', background: 'transparent' }}
+                style={{ width: 44, height: 44, borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'transparent', padding: 2 }}
               />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>{label}</div>
+                <div className="tnum" style={{ fontSize: 11, color: 'var(--muted)' }}>{(theme.palette[i] ?? '#7F77DD').toUpperCase()}</div>
+              </div>
             </div>
           ))}
+        </div>
+        <p style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 8, lineHeight: 1.4 }}>
+          Elige libremente los tonos de tu identidad. El color principal define botones, menú activo y acentos del panel.
+        </p>
+      </Field>
+
+      <Field label="Sugerencias rápidas">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {APPEARANCE_PALETTES.map(p => {
+            const active = p.c.every((col, i) => col === theme.palette[i]);
+            return (
+              <button
+                key={p.name}
+                type="button"
+                className={'fchip' + (active ? ' on' : '')}
+                onClick={() => onChange({ palette: p.c })}
+                title={p.name}
+              >
+                <span style={{ display: 'inline-flex', gap: 3 }}>
+                  {p.c.map(col => (
+                    <span key={col} style={{ width: 10, height: 10, borderRadius: '50%', background: col, display: 'inline-block' }} />
+                  ))}
+                </span>
+                {p.name}
+              </button>
+            );
+          })}
         </div>
       </Field>
 
@@ -109,7 +122,7 @@ export function PanelAppearance({ theme, onChange }: PanelAppearanceProps) {
           {APPEARANCE_FONTS.map(f => (
             <button key={f} type="button"
               className={'fchip' + (theme.font === f ? ' on' : '')}
-              style={{ fontFamily: `'${f}', system-ui, sans-serif`, fontSize: 13 }}
+              style={{ fontFamily: `${FONT_PREVIEW[f]}, system-ui, sans-serif`, fontSize: 13 }}
               onClick={() => onChange({ font: f })}>
               {f}
             </button>
@@ -140,6 +153,18 @@ export function PanelAppearance({ theme, onChange }: PanelAppearanceProps) {
         <div style={{ display: 'flex', justifyContent: 'space-between', ...C, marginTop: 4 }}>
           <span>Sin gradiente</span><span>Máximo</span>
         </div>
+      </Field>
+
+      <Field label={`Efecto cristal — ${theme.glass}%`}>
+        <input type="range" min={0} max={100} step={5} value={theme.glass}
+          onChange={e => onChange({ glass: Number(e.target.value) })}
+          style={{ width: '100%', accentColor: 'var(--accent)' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', ...C, marginTop: 4 }}>
+          <span>Sólido</span><span>Cristal</span>
+        </div>
+        <p style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.4 }}>
+          Translucidez y desenfoque tipo iOS en menú lateral, barra superior, ventanas y avisos.
+        </p>
       </Field>
     </>
   );

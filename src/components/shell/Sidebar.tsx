@@ -7,8 +7,6 @@ import { Avatar } from '@/components/ui/Avatar';
 import { SessionActions } from '@/components/shell/SessionActions';
 import type { Profile } from '@/types/db';
 
-const PALETTE = ['var(--accent)', 'var(--accent2)', 'var(--accent3)'];
-
 interface NavItem {
   href: string;
   label: string;
@@ -104,20 +102,17 @@ export function Sidebar({ navItems, shopName, shopSub, shopColor, shopImg, brand
       </div>
 
       <nav className="nav" style={{ flex: 1 }}>
-        {navItems.map((item, index) => {
+        {navItems.map(item => {
           const active = pathname.startsWith(item.href);
-          const accentColor = PALETTE[index % 3];
           return (
             <Link
               key={item.href}
               href={item.href}
               className={'nav-i' + (active ? ' on' : '')}
               onClick={onClose}
-              style={active ? { color: accentColor } : undefined}
+              title={item.label}
             >
-              <span style={active ? { color: accentColor, display: 'contents' } : { display: 'contents' }}>
-                <Icon name={item.icon} />
-              </span>
+              <Icon name={item.icon} />
               <span>{item.label}</span>
               {item.badge != null && item.badge > 0 && <span className="ncount">{item.badge}</span>}
             </Link>
@@ -125,7 +120,7 @@ export function Sidebar({ navItems, shopName, shopSub, shopColor, shopImg, brand
         })}
       </nav>
 
-      {navFooter && <div style={{ padding: '0 12px 8px' }}>{navFooter}</div>}
+      {navFooter && <div className="nav-footer" style={{ padding: '0 12px 8px' }}>{navFooter}</div>}
 
       {/* shop footer — avatar clickeable solo para ver */}
       <div

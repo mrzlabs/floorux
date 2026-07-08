@@ -7,7 +7,6 @@ import { MayloDock } from '@/components/shell/MayloDock';
 import { applyFullTheme } from '@/hooks/useTheme';
 import { createClient } from '@/lib/supabase/client';
 import { ToastProvider } from '@/components/ui/ToastContext';
-import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile, Comercio } from '@/types/db';
 
 const DEFAULT_PALETTE = { accent: '#7F77DD', accent2: '#27C3D8', accent3: '#B57BE0' };
@@ -194,13 +193,6 @@ export function EmpShell({ profile, view, children }: EmpShellProps) {
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={comercio.photo_url ? () => setBrandLightbox(true) : undefined}
         onShopImgClick={profile.avatar_url ? () => setAvatarLightbox(true) : undefined}
-        navFooter={
-          <ThemeModeToggle
-            profileId={profile.id}
-            initialMode={employeeModeRef.current}
-            onModeChange={(mode) => applyEmployeeTheme(adminThemeRef.current, mode)}
-          />
-        }
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
 

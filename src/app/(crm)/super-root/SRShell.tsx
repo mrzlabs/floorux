@@ -8,7 +8,6 @@ import { applyFullTheme } from '@/hooks/useTheme';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import { createClient } from '@/lib/supabase/client';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
-import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile } from '@/types/db';
 
 const NAV = [
@@ -63,7 +62,7 @@ const HELP: Record<string, { guide: string[]; tips: string[] }> = {
   },
   apariencia: {
     guide: ['Elige modo claro u oscuro.', 'Selecciona una paleta o define tus propios colores.', 'Ajusta tipografía, densidad y bordes a tu gusto.', 'Guarda para que el cambio persista entre sesiones.'],
-    tips: ['El modo claro/oscuro también se cambia rápido desde el pie del menú.'],
+    tips: ['Elige el modo claro u oscuro y la paleta de tu panel desde esta pantalla.'],
   },
 };
 
@@ -122,13 +121,6 @@ export function SRShell({ profile, view, children }: SRShellProps) {
         onClose={() => setSideOpen(false)}
         brandLogo={brandLogo || null}
         onBrandLogoUpload={handleBrandLogoUpload}
-        navFooter={
-          <ThemeModeToggle
-            profileId={profile.id}
-            initialMode={pt.mode === 'light' ? 'light' : 'dark'}
-            onModeChange={(mode) => applyFullTheme({ ...pt, mode }, '#B57BE0')}
-          />
-        }
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">

@@ -8,7 +8,6 @@ import { applyFullTheme } from '@/hooks/useTheme';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
 import { ToastProvider } from '@/components/ui/ToastContext';
 import { createClient } from '@/lib/supabase/client';
-import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile, Comercio } from '@/types/db';
 
 const TIPS: Record<string, string[]> = {
@@ -18,9 +17,11 @@ const TIPS: Record<string, string[]> = {
   inventario: ['Define la alerta mínima para que te avise.'],
   gastos:     ['Cada gasto debe incluir una evidencia válida.', 'Filtra por empleado para revisar la operación.'],
   empleados:  ['Activa o desactiva un empleado al instante.'],
+  clientes:   ['Los clientes que se registran desde tu página pública aparecen aquí.', 'Los que cumplen años este mes son tu mejor campaña de WhatsApp.'],
   chat:       ['Comunícate con tu equipo en tiempo real.'],
   soporte:    ['Tu Super Admin recibe tus tickets de soporte al instante.'],
-  apariencia: ['El modo claro/oscuro también se cambia rápido desde el pie del menú.'],
+  integraciones: ['Cada integración muestra su incremento mensual antes de confirmar.', 'Si prefieres, OperUX administra la integración por ti.'],
+  apariencia: ['Elige el modo claro u oscuro y la paleta de tu panel desde esta pantalla.'],
   perfil:     ['Sube la foto de tu local.'],
 };
 
@@ -38,8 +39,10 @@ const GUIDES: Record<string, string[]> = {
   inventario: ['Busca el producto por nombre o categoría.', 'Revisa stock, costo, precio y margen.', 'Abastece, edita o elimina solo después de validar el producto correcto.'],
   gastos: ['Filtra por fecha o empleado.', 'Revisa monto, evidencia y concepto.', 'Aprueba correcciones solo con soporte visible.'],
   empleados: ['Ubica el empleado.', 'Valida rol, comercio y estado activo.', 'Aplica cambios de acceso solo si corresponden a la operación actual.'],
+  clientes: ['Busca el cliente por nombre, correo o teléfono.', 'Revisa sus reservas y su historial.', 'Abre el chat de WhatsApp para contactarlo.', 'En «Lo que ven tus clientes» revisa tu página pública y comparte el QR.'],
   chat: ['Selecciona la conversación.', 'Responde con contexto operativo.', 'Confirma que el mensaje quede enviado al equipo correcto.'],
   soporte: ['Revisa tickets abiertos.', 'Prioriza bloqueos operativos.', 'Responde y actualiza estado cuando la gestión quede resuelta.'],
+  integraciones: ['Explora el catálogo por categoría: redes, campañas, facturación y automatización.', 'Revisa el incremento mensual y confirma en el pop-up.', 'Activa la opción "OperUX lo administra" si quieres el servicio gestionado.', 'Sigue seguidores y campañas en la pestaña Redes y campañas.'],
   apariencia: ['Elige modo claro u oscuro.', 'Selecciona una paleta o define tus propios colores.', 'Ajusta tipografía, densidad y bordes a tu gusto.', 'Guarda para que el cambio persista entre sesiones.'],
   perfil: ['Actualiza datos del comercio.', 'Carga foto o identidad visual del local.', 'Verifica que el sidebar refleje el comercio actualizado.'],
 };
@@ -135,8 +138,10 @@ export function AdminShell({
     { href: '/admin/inventario', label: 'Inventario', icon: 'box',    title: 'Inventario y conceptos', sub: 'Stock, ganancia y alertas', badge: lowStockCount },
     { href: '/admin/gastos',     label: 'Gastos',     icon: 'receipt', title: 'Gestión de gastos',       sub: 'Registro, evidencias y control operativo' },
     { href: '/admin/empleados',  label: 'Empleados',  icon: 'users',  title: 'Empleados',              sub: 'Equipo del local' },
+    { href: '/admin/clientes',   label: 'Clientes',   icon: 'clients', title: 'Clientes',              sub: 'Registros, reservas y tu página pública' },
     { href: '/admin/chat',       label: 'Chat',       icon: 'chat',   title: 'Chat interno',           sub: 'Mensajes del equipo' },
     { href: '/admin/soporte',    label: 'Soporte',    icon: 'alert',  title: 'Soporte',                sub: 'Canal con el Super Admin', badge: supportBadge },
+    { href: '/admin/integraciones', label: 'Integraciones', icon: 'plug', title: 'Integraciones',      sub: 'Redes, campañas, DIAN y automatización' },
     { href: '/admin/apariencia', label: 'Apariencia', icon: 'spark',  title: 'Apariencia',             sub: 'Tema y colores de tu panel' },
     { href: '/admin/perfil',     label: 'Mi local',   icon: 'user',   title: 'Mi local',               sub: 'Datos, redes y facturación' },
   ];
@@ -165,13 +170,6 @@ export function AdminShell({
         brandFallbackColor={currentComercio.color}
         brandFallbackInitials={bizInitials}
         onBrandLogoClick={currentComercio.photo_url ? () => setBrandLightbox(true) : undefined}
-        navFooter={
-          <ThemeModeToggle
-            profileId={profile.id}
-            initialMode={(profile.panel_theme as Record<string, unknown>)?.mode === 'light' ? 'light' : 'dark'}
-            onModeChange={(mode) => applyFullTheme({ ...(profile.panel_theme as Record<string, unknown>), mode }, profile.color)}
-          />
-        }
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
 

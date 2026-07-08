@@ -9,7 +9,6 @@ import { ToastProvider } from '@/components/ui/ToastContext';
 import { useSupportBadge } from '@/hooks/useSupportBadge';
 import { usePlanUsage } from '@/hooks/usePlanUsage';
 import { createClient } from '@/lib/supabase/client';
-import { ThemeModeToggle } from '@/components/theme/ThemeModeToggle';
 import type { Profile, Comercio } from '@/types/db';
 
 const NAV = [
@@ -49,7 +48,7 @@ const HELP: Record<string, { guide: string[]; tips: string[] }> = {
   },
   apariencia: {
     guide: ['Elige modo claro u oscuro.', 'Selecciona una paleta o define tus propios colores.', 'Ajusta tipografía, densidad y bordes a tu gusto.', 'Guarda para que el cambio persista entre sesiones.'],
-    tips: ['El modo claro/oscuro también se cambia rápido desde el pie del menú.'],
+    tips: ['Elige el modo claro u oscuro y la paleta de tu panel desde esta pantalla.'],
   },
 };
 
@@ -150,16 +149,7 @@ export function SuperShell({ profile, view, children }: SuperShellProps) {
         brandLogo={currentBiz?.photo_url ?? null}
         brandFallbackColor={currentBiz?.color ?? profile.color}
         brandFallbackInitials={currentBizInitials ?? 'FX'}
-        navFooter={
-          <>
-            <ThemeModeToggle
-              profileId={profile.id}
-              initialMode={(profile.panel_theme as Record<string, unknown>)?.mode === 'light' ? 'light' : 'dark'}
-              onModeChange={(mode) => applyFullTheme({ ...(profile.panel_theme as Record<string, unknown>), mode }, profile.color)}
-            />
-            {usageWidget}
-          </>
-        }
+        navFooter={usageWidget}
       />
       {sideOpen && <div className="scrim" style={{ zIndex: 99 }} onClick={() => setSideOpen(false)} />}
       <main className="main">
